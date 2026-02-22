@@ -1,0 +1,211 @@
+[
+  {
+    "id": "printed-01",
+    "scenario": "printed clean list",
+    "rawText": "milk\neggs\nbread\nbananas",
+    "expected": [
+      { "canonical": "milk", "category": "dairy_eggs" },
+      { "canonical": "eggs", "category": "dairy_eggs" },
+      { "canonical": "bread", "category": "bakery" },
+      { "canonical": "bananas", "category": "produce" }
+    ]
+  },
+  {
+    "id": "printed-02",
+    "scenario": "comma separated",
+    "rawText": "apples, bananas, pears",
+    "expected": [
+      { "canonical": "apples", "category": "produce" },
+      { "canonical": "bananas", "category": "produce" },
+      { "canonical": "pears", "category": "produce" }
+    ]
+  },
+  {
+    "id": "printed-03",
+    "scenario": "units and notes",
+    "rawText": "chicken 2 lb (organic)\nrice 5 lb",
+    "expected": [
+      { "canonical": "chicken breast", "category": "meat_seafood" },
+      { "canonical": "rice", "category": "pantry" }
+    ]
+  },
+  {
+    "id": "printed-04",
+    "scenario": "bulleted list",
+    "rawText": "• toothpaste\n• shampoo\n• soap",
+    "expected": [
+      { "canonical": "toothpaste", "category": "personal_care" },
+      { "canonical": "shampoo", "category": "personal_care" },
+      { "canonical": "dish soap", "category": "household" }
+    ]
+  },
+  {
+    "id": "printed-05",
+    "scenario": "checkbox list",
+    "rawText": "[ ] oats\n[ ] milk\n[ ] cereal",
+    "expected": [
+      { "canonical": "oats", "category": "pantry" },
+      { "canonical": "milk", "category": "dairy_eggs" },
+      { "canonical": "cereal", "category": "pantry" }
+    ]
+  },
+  {
+    "id": "printed-06",
+    "scenario": "numbered list",
+    "rawText": "1) oranges\n2) lemons\n3) limes",
+    "expected": [
+      { "canonical": "oranges", "category": "produce" },
+      { "canonical": "lemons", "category": "produce" },
+      { "canonical": "limes", "category": "produce" }
+    ]
+  },
+  {
+    "id": "printed-07",
+    "scenario": "frozen and dairy",
+    "rawText": "ice cream\nyogurt\nbutter",
+    "expected": [
+      { "canonical": "ice cream", "category": "frozen" },
+      { "canonical": "yogurt", "category": "dairy_eggs" },
+      { "canonical": "butter", "category": "dairy_eggs" }
+    ]
+  },
+  {
+    "id": "printed-08",
+    "scenario": "deli items",
+    "rawText": "deli turkey\ncheddar cheese\nham",
+    "expected": [
+      { "canonical": "deli turkey", "category": "deli" },
+      { "canonical": "cheddar cheese", "category": "deli" },
+      { "canonical": "ham", "category": "deli" }
+    ]
+  },
+  {
+    "id": "printed-09",
+    "scenario": "household items",
+    "rawText": "paper towels\ntrash bags\nlaundry detergent",
+    "expected": [
+      { "canonical": "paper towels", "category": "household" },
+      { "canonical": "trash bags", "category": "household" },
+      { "canonical": "laundry detergent", "category": "household" }
+    ]
+  },
+  {
+    "id": "printed-10",
+    "scenario": "pet section",
+    "rawText": "cat litter\ncat food\ndog food",
+    "expected": [
+      { "canonical": "cat litter", "category": "pet" },
+      { "canonical": "cat food", "category": "pet" },
+      { "canonical": "dog food", "category": "pet" }
+    ]
+  },
+  {
+    "id": "handwritten-neat-01",
+    "scenario": "handwriting neat short",
+    "rawText": "bananas\nmiik\nchips",
+    "expected": [
+      { "canonical": "bananas", "category": "produce" },
+      { "canonical": "milk", "category": "dairy_eggs" },
+      { "canonical": "chips", "category": "snacks" }
+    ]
+  },
+  {
+    "id": "handwritten-neat-02",
+    "scenario": "handwriting with quantity",
+    "rawText": "2 apples\n1 bread\n3 eggs",
+    "expected": [
+      { "canonical": "apples", "category": "produce" },
+      { "canonical": "bread", "category": "bakery" },
+      { "canonical": "eggs", "category": "dairy_eggs" }
+    ]
+  },
+  {
+    "id": "handwritten-neat-03",
+    "scenario": "mixed pantry",
+    "rawText": "rice\nbeans\nolive oil",
+    "expected": [
+      { "canonical": "rice", "category": "pantry" },
+      { "canonical": "beans", "category": "pantry" },
+      { "canonical": "olive oil", "category": "pantry" }
+    ]
+  },
+  {
+    "id": "handwritten-neat-04",
+    "scenario": "produce heavy",
+    "rawText": "spinach\nlettuce\ncarrots\nbroccoli",
+    "expected": [
+      { "canonical": "spinach", "category": "produce" },
+      { "canonical": "lettuce", "category": "produce" },
+      { "canonical": "carrots", "category": "produce" },
+      { "canonical": "broccoli", "category": "produce" }
+    ]
+  },
+  {
+    "id": "handwritten-neat-05",
+    "scenario": "beverages",
+    "rawText": "coffee\ntea\norange juice\nwater",
+    "expected": [
+      { "canonical": "coffee", "category": "beverages" },
+      { "canonical": "tea", "category": "beverages" },
+      { "canonical": "orange juice", "category": "beverages" },
+      { "canonical": "bottled water", "category": "beverages" }
+    ]
+  },
+  {
+    "id": "handwritten-messy-01",
+    "scenario": "messy with OCR typos",
+    "rawText": "bannana\nmi1k\ntoi1et paper",
+    "expected": [
+      { "canonical": "bananas", "category": "produce" },
+      { "canonical": "milk", "category": "dairy_eggs" },
+      { "canonical": "toi1et paper", "category": "household" }
+    ]
+  },
+  {
+    "id": "handwritten-messy-02",
+    "scenario": "low light sparse",
+    "rawText": "soap\nshrmp\nspagheti",
+    "expected": [
+      { "canonical": "dish soap", "category": "household" },
+      { "canonical": "shrimp", "category": "meat_seafood" },
+      { "canonical": "pasta", "category": "pantry" }
+    ]
+  },
+  {
+    "id": "handwritten-messy-03",
+    "scenario": "crumpled paper symbols",
+    "rawText": "## eggs\n.. bread\n?? soda",
+    "expected": [
+      { "canonical": "eggs", "category": "dairy_eggs" },
+      { "canonical": "bread", "category": "bakery" },
+      { "canonical": "soda", "category": "beverages" }
+    ]
+  },
+  {
+    "id": "handwritten-messy-04",
+    "scenario": "very long list subset",
+    "rawText": "milk\neggs\nbread\nbananas\ncoffee\nrice\nbeans\nchips\nsoap\ncat food",
+    "expected": [
+      { "canonical": "milk", "category": "dairy_eggs" },
+      { "canonical": "eggs", "category": "dairy_eggs" },
+      { "canonical": "bread", "category": "bakery" },
+      { "canonical": "bananas", "category": "produce" },
+      { "canonical": "coffee", "category": "beverages" },
+      { "canonical": "rice", "category": "pantry" },
+      { "canonical": "beans", "category": "pantry" },
+      { "canonical": "chips", "category": "snacks" },
+      { "canonical": "dish soap", "category": "household" },
+      { "canonical": "cat food", "category": "pet" }
+    ]
+  },
+  {
+    "id": "handwritten-messy-05",
+    "scenario": "non grocery extras",
+    "rawText": "birthday card\nlight bulbs\nmilk",
+    "expected": [
+      { "canonical": "birthday card", "category": "other" },
+      { "canonical": "light bulbs", "category": "other" },
+      { "canonical": "milk", "category": "dairy_eggs" }
+    ]
+  }
+]

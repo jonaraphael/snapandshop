@@ -1,0 +1,548 @@
+[
+  {
+    "canonical": "bananas",
+    "synonyms": ["banana", "bananas", "bannana", "banannas"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 10
+  },
+  {
+    "canonical": "apples",
+    "synonyms": ["apple", "apples", "app1e"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 11
+  },
+  {
+    "canonical": "lemons",
+    "synonyms": ["lemon", "lemons"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 12
+  },
+  {
+    "canonical": "limes",
+    "synonyms": ["lime", "limes", "1ime"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 13
+  },
+  {
+    "canonical": "strawberries",
+    "synonyms": ["strawberry", "strawberries"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 14
+  },
+  {
+    "canonical": "blueberries",
+    "synonyms": ["blueberry", "blueberries"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 15
+  },
+  {
+    "canonical": "grapes",
+    "synonyms": ["grape", "grapes"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 16
+  },
+  {
+    "canonical": "oranges",
+    "synonyms": ["orange", "oranges"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 17
+  },
+  {
+    "canonical": "avocados",
+    "synonyms": ["avocado", "avocados"],
+    "category": "produce",
+    "subcategory": "fruit",
+    "orderHint": 18
+  },
+  {
+    "canonical": "lettuce",
+    "synonyms": ["lettuce", "romaine", "iceberg"],
+    "category": "produce",
+    "subcategory": "salad_greens",
+    "orderHint": 30
+  },
+  {
+    "canonical": "spinach",
+    "synonyms": ["spinach", "baby spinach"],
+    "category": "produce",
+    "subcategory": "salad_greens",
+    "orderHint": 31
+  },
+  {
+    "canonical": "kale",
+    "synonyms": ["kale"],
+    "category": "produce",
+    "subcategory": "salad_greens",
+    "orderHint": 32
+  },
+  {
+    "canonical": "carrots",
+    "synonyms": ["carrot", "carrots"],
+    "category": "produce",
+    "subcategory": "vegetables",
+    "orderHint": 40
+  },
+  {
+    "canonical": "broccoli",
+    "synonyms": ["broccoli"],
+    "category": "produce",
+    "subcategory": "vegetables",
+    "orderHint": 41
+  },
+  {
+    "canonical": "cauliflower",
+    "synonyms": ["cauliflower"],
+    "category": "produce",
+    "subcategory": "vegetables",
+    "orderHint": 42
+  },
+  {
+    "canonical": "bell peppers",
+    "synonyms": ["bell pepper", "bell peppers", "pepper"],
+    "category": "produce",
+    "subcategory": "vegetables",
+    "orderHint": 43
+  },
+  {
+    "canonical": "onions",
+    "synonyms": ["onion", "onions", "yellow onion", "red onion"],
+    "category": "produce",
+    "subcategory": "vegetables",
+    "orderHint": 44
+  },
+  {
+    "canonical": "garlic",
+    "synonyms": ["garlic"],
+    "category": "produce",
+    "subcategory": "vegetables",
+    "orderHint": 45
+  },
+  {
+    "canonical": "potatoes",
+    "synonyms": ["potato", "potatoes", "russet potato"],
+    "category": "produce",
+    "subcategory": "vegetables",
+    "orderHint": 46
+  },
+  {
+    "canonical": "cilantro",
+    "synonyms": ["cilantro"],
+    "category": "produce",
+    "subcategory": "herbs",
+    "orderHint": 50
+  },
+  {
+    "canonical": "parsley",
+    "synonyms": ["parsley"],
+    "category": "produce",
+    "subcategory": "herbs",
+    "orderHint": 51
+  },
+  {
+    "canonical": "basil",
+    "synonyms": ["basil"],
+    "category": "produce",
+    "subcategory": "herbs",
+    "orderHint": 52
+  },
+  {
+    "canonical": "bread",
+    "synonyms": ["bread", "sandwich bread", "loaf"],
+    "category": "bakery",
+    "subcategory": "bread",
+    "orderHint": 10
+  },
+  {
+    "canonical": "bagels",
+    "synonyms": ["bagel", "bagels"],
+    "category": "bakery",
+    "subcategory": "bread",
+    "orderHint": 11
+  },
+  {
+    "canonical": "tortillas",
+    "synonyms": ["tortilla", "tortillas"],
+    "category": "bakery",
+    "subcategory": "tortillas",
+    "orderHint": 20
+  },
+  {
+    "canonical": "croissants",
+    "synonyms": ["croissant", "croissants"],
+    "category": "bakery",
+    "subcategory": "pastries",
+    "orderHint": 30
+  },
+  {
+    "canonical": "muffins",
+    "synonyms": ["muffin", "muffins"],
+    "category": "bakery",
+    "subcategory": "pastries",
+    "orderHint": 31
+  },
+  {
+    "canonical": "deli turkey",
+    "synonyms": ["deli turkey", "turkey slices", "sliced turkey"],
+    "category": "deli",
+    "subcategory": "meat",
+    "orderHint": 10
+  },
+  {
+    "canonical": "ham",
+    "synonyms": ["ham", "deli ham"],
+    "category": "deli",
+    "subcategory": "meat",
+    "orderHint": 11
+  },
+  {
+    "canonical": "cheddar cheese",
+    "synonyms": ["cheddar", "cheddar cheese", "deli cheese"],
+    "category": "deli",
+    "subcategory": "cheese",
+    "orderHint": 20
+  },
+  {
+    "canonical": "chicken breast",
+    "synonyms": ["chicken breast", "chicken"],
+    "category": "meat_seafood",
+    "subcategory": "chicken",
+    "orderHint": 10
+  },
+  {
+    "canonical": "ground beef",
+    "synonyms": ["ground beef", "beef", "hamburger meat"],
+    "category": "meat_seafood",
+    "subcategory": "beef",
+    "orderHint": 20
+  },
+  {
+    "canonical": "salmon",
+    "synonyms": ["salmon", "salmon fillet"],
+    "category": "meat_seafood",
+    "subcategory": "seafood",
+    "orderHint": 30
+  },
+  {
+    "canonical": "shrimp",
+    "synonyms": ["shrimp"],
+    "category": "meat_seafood",
+    "subcategory": "seafood",
+    "orderHint": 31
+  },
+  {
+    "canonical": "milk",
+    "synonyms": ["milk", "miik", "mi1k"],
+    "category": "dairy_eggs",
+    "subcategory": "milk",
+    "orderHint": 10
+  },
+  {
+    "canonical": "eggs",
+    "synonyms": ["eggs", "egg"],
+    "category": "dairy_eggs",
+    "subcategory": "eggs",
+    "orderHint": 20
+  },
+  {
+    "canonical": "yogurt",
+    "synonyms": ["yogurt", "greek yogurt", "y0gurt"],
+    "category": "dairy_eggs",
+    "subcategory": "yogurt",
+    "orderHint": 30
+  },
+  {
+    "canonical": "mozzarella",
+    "synonyms": ["mozzarella", "mozzarella cheese"],
+    "category": "dairy_eggs",
+    "subcategory": "cheese",
+    "orderHint": 40
+  },
+  {
+    "canonical": "butter",
+    "synonyms": ["butter", "unsalted butter"],
+    "category": "dairy_eggs",
+    "subcategory": "butter",
+    "orderHint": 50
+  },
+  {
+    "canonical": "ice cream",
+    "synonyms": ["ice cream"],
+    "category": "frozen",
+    "subcategory": "dessert",
+    "orderHint": 10
+  },
+  {
+    "canonical": "frozen pizza",
+    "synonyms": ["frozen pizza", "pizza"],
+    "category": "frozen",
+    "subcategory": "meal",
+    "orderHint": 11
+  },
+  {
+    "canonical": "frozen peas",
+    "synonyms": ["frozen peas", "peas"],
+    "category": "frozen",
+    "subcategory": "vegetable",
+    "orderHint": 12
+  },
+  {
+    "canonical": "rice",
+    "synonyms": ["rice", "white rice", "brown rice"],
+    "category": "pantry",
+    "subcategory": "pasta_rice",
+    "orderHint": 10
+  },
+  {
+    "canonical": "pasta",
+    "synonyms": ["pasta", "spaghetti", "penne"],
+    "category": "pantry",
+    "subcategory": "pasta_rice",
+    "orderHint": 11
+  },
+  {
+    "canonical": "flour",
+    "synonyms": ["flour", "all purpose flour"],
+    "category": "pantry",
+    "subcategory": "baking",
+    "orderHint": 20
+  },
+  {
+    "canonical": "sugar",
+    "synonyms": ["sugar", "brown sugar"],
+    "category": "pantry",
+    "subcategory": "baking",
+    "orderHint": 21
+  },
+  {
+    "canonical": "olive oil",
+    "synonyms": ["olive oil", "oil"],
+    "category": "pantry",
+    "subcategory": "condiments",
+    "orderHint": 30
+  },
+  {
+    "canonical": "salt",
+    "synonyms": ["salt", "sea salt"],
+    "category": "pantry",
+    "subcategory": "spices",
+    "orderHint": 40
+  },
+  {
+    "canonical": "black pepper",
+    "synonyms": ["pepper", "black pepper"],
+    "category": "pantry",
+    "subcategory": "spices",
+    "orderHint": 41
+  },
+  {
+    "canonical": "ketchup",
+    "synonyms": ["ketchup"],
+    "category": "pantry",
+    "subcategory": "condiments",
+    "orderHint": 42
+  },
+  {
+    "canonical": "mayonnaise",
+    "synonyms": ["mayo", "mayonnaise"],
+    "category": "pantry",
+    "subcategory": "condiments",
+    "orderHint": 43
+  },
+  {
+    "canonical": "cereal",
+    "synonyms": ["cereal"],
+    "category": "pantry",
+    "subcategory": "breakfast",
+    "orderHint": 50
+  },
+  {
+    "canonical": "oats",
+    "synonyms": ["oats", "oatmeal"],
+    "category": "pantry",
+    "subcategory": "breakfast",
+    "orderHint": 51
+  },
+  {
+    "canonical": "beans",
+    "synonyms": ["beans", "black beans", "kidney beans"],
+    "category": "pantry",
+    "subcategory": "canned",
+    "orderHint": 52
+  },
+  {
+    "canonical": "tomato sauce",
+    "synonyms": ["tomato sauce", "marinara"],
+    "category": "pantry",
+    "subcategory": "canned",
+    "orderHint": 53
+  },
+  {
+    "canonical": "chips",
+    "synonyms": ["chips", "potato chips", "tortilla chips"],
+    "category": "snacks",
+    "subcategory": "salty",
+    "orderHint": 10
+  },
+  {
+    "canonical": "crackers",
+    "synonyms": ["crackers"],
+    "category": "snacks",
+    "subcategory": "salty",
+    "orderHint": 11
+  },
+  {
+    "canonical": "granola bars",
+    "synonyms": ["granola bars", "protein bars", "snack bars"],
+    "category": "snacks",
+    "subcategory": "bars",
+    "orderHint": 12
+  },
+  {
+    "canonical": "cookies",
+    "synonyms": ["cookies", "cookie"],
+    "category": "snacks",
+    "subcategory": "sweet",
+    "orderHint": 13
+  },
+  {
+    "canonical": "sparkling water",
+    "synonyms": ["sparkling water", "seltzer"],
+    "category": "beverages",
+    "subcategory": "water",
+    "orderHint": 10
+  },
+  {
+    "canonical": "bottled water",
+    "synonyms": ["water", "bottled water"],
+    "category": "beverages",
+    "subcategory": "water",
+    "orderHint": 11
+  },
+  {
+    "canonical": "coffee",
+    "synonyms": ["coffee", "ground coffee"],
+    "category": "beverages",
+    "subcategory": "coffee",
+    "orderHint": 20
+  },
+  {
+    "canonical": "tea",
+    "synonyms": ["tea", "green tea"],
+    "category": "beverages",
+    "subcategory": "tea",
+    "orderHint": 21
+  },
+  {
+    "canonical": "orange juice",
+    "synonyms": ["orange juice", "oj"],
+    "category": "beverages",
+    "subcategory": "juice",
+    "orderHint": 30
+  },
+  {
+    "canonical": "soda",
+    "synonyms": ["soda", "cola", "coke"],
+    "category": "beverages",
+    "subcategory": "soda",
+    "orderHint": 40
+  },
+  {
+    "canonical": "paper towels",
+    "synonyms": ["paper towels", "paper towel"],
+    "category": "household",
+    "subcategory": "paper",
+    "orderHint": 10
+  },
+  {
+    "canonical": "toilet paper",
+    "synonyms": ["toilet paper", "tp"],
+    "category": "household",
+    "subcategory": "paper",
+    "orderHint": 11
+  },
+  {
+    "canonical": "dish soap",
+    "synonyms": ["dish soap", "soap"],
+    "category": "household",
+    "subcategory": "cleaning",
+    "orderHint": 20
+  },
+  {
+    "canonical": "laundry detergent",
+    "synonyms": ["laundry detergent", "detergent"],
+    "category": "household",
+    "subcategory": "cleaning",
+    "orderHint": 21
+  },
+  {
+    "canonical": "trash bags",
+    "synonyms": ["trash bags", "garbage bags"],
+    "category": "household",
+    "subcategory": "cleaning",
+    "orderHint": 22
+  },
+  {
+    "canonical": "toothpaste",
+    "synonyms": ["toothpaste"],
+    "category": "personal_care",
+    "subcategory": "oral",
+    "orderHint": 10
+  },
+  {
+    "canonical": "toothbrush",
+    "synonyms": ["toothbrush", "tooth brush"],
+    "category": "personal_care",
+    "subcategory": "oral",
+    "orderHint": 11
+  },
+  {
+    "canonical": "shampoo",
+    "synonyms": ["shampoo"],
+    "category": "personal_care",
+    "subcategory": "hair",
+    "orderHint": 20
+  },
+  {
+    "canonical": "conditioner",
+    "synonyms": ["conditioner"],
+    "category": "personal_care",
+    "subcategory": "hair",
+    "orderHint": 21
+  },
+  {
+    "canonical": "deodorant",
+    "synonyms": ["deodorant"],
+    "category": "personal_care",
+    "subcategory": "body",
+    "orderHint": 22
+  },
+  {
+    "canonical": "dog food",
+    "synonyms": ["dog food", "puppy food"],
+    "category": "pet",
+    "subcategory": "dog",
+    "orderHint": 10
+  },
+  {
+    "canonical": "cat food",
+    "synonyms": ["cat food", "kitten food"],
+    "category": "pet",
+    "subcategory": "cat",
+    "orderHint": 11
+  },
+  {
+    "canonical": "cat litter",
+    "synonyms": ["cat litter", "litter"],
+    "category": "pet",
+    "subcategory": "cat",
+    "orderHint": 12
+  }
+]

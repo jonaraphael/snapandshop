@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "choppinglist-vision-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-22",
+  "vars": {
+    "OPENAI_MODEL": "gpt-5.2"
+  }
+}
