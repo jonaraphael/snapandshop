@@ -32,6 +32,15 @@ npm run test:e2e
 
 See `docs/ChoppingList_Product_Spec.md`.
 
+## Screenshots (iPhone)
+
+<p>
+  <img src="docs/images/marketing/01-home-recent-lists.png" alt="Home with recent lists" width="240" />
+  <img src="docs/images/marketing/02-list-checklist.png" alt="Checklist view" width="240" />
+  <img src="docs/images/marketing/03-list-show-picture.png" alt="Original picture sheet" width="240" />
+  <img src="docs/images/marketing/04-review-edit.png" alt="Edit list screen" width="240" />
+</p>
+
 ## Architecture Notes
 
 - Default mode is static-only deployment: all OCR/parsing runs client-side.

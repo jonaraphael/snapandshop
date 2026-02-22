@@ -9,3 +9,4 @@ test-results
 .env.local
 .npm-cache
 *.tsbuildinfo
+marketing-assets/

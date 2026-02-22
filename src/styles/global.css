@@ -224,16 +224,55 @@ input {
 
 .top-bar-side {
   min-width: 70px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .top-bar-side.align-right {
   text-align: right;
+  justify-content: flex-end;
 }
 
 .top-bar-title {
   text-align: center;
   font-family: "Fraunces", serif;
   font-size: 1.3rem;
+}
+
+.header-icon-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.header-icon-btn {
+  border: 1px solid #181818;
+  background: #fff;
+  color: #111;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+}
+
+.header-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.header-icon-svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.header-icon-text-btn {
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
 .screen-title {
@@ -420,13 +459,6 @@ input {
   flex-direction: column;
   gap: 0.85rem;
   padding-bottom: 6rem;
-}
-
-.list-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  flex-wrap: wrap;
 }
 
 .list-title-block {

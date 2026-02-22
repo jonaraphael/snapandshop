@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "capture:marketing": "node scripts/capture-marketing-screenshots.mjs",
     "deploy:pages": "wrangler pages deploy dist --project-name=choppinglist",
     "deploy:worker": "wrangler deploy --config worker/wrangler.jsonc"
   },

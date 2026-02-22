@@ -103,7 +103,7 @@ export const Review = (): JSX.Element => {
 
   return (
     <main className="screen review-screen">
-      <TopBar title={`Found ${items.length} items`} onLeftClick={() => navigate(ROUTES.landing)} leftLabel="Back" />
+      <TopBar title={`Found ${items.length} items`} onLeftClick={() => navigate(-1)} leftLabel="Back" />
       {suggestMagicMode ? (
         <section className="magic-hint">
           <p>Handwriting? Magic Mode can help.</p>
