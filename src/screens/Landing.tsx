@@ -225,7 +225,7 @@ export const Landing = (): JSX.Element => {
       onDrop={onDropFile}
     >
       <section className={`hero-card${dragActive ? " drag-active" : ""}`}>
-        <h1 className="hero-title">ChoppingList.store</h1>
+        <h1 className="hero-title">ChoppingList</h1>
         <p className="hero-subtitle">Snap your list. Shop faster.</p>
         <div className="cta-stack">
           <PrimaryButton

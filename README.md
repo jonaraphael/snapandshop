@@ -1,6 +1,7 @@
-# ChoppingList.store
+# ChoppingList
 
-Mobile-first PWA that turns a shopping-list photo into a categorized, aisle-ordered checklist.
+Turn a messy shopping-list photo into a clean, aisle-ordered checklist in seconds.
+Open the image, extract items with AI, and shop in store layout order without bouncing across aisles.
 
 ## Stack
 
@@ -40,6 +41,11 @@ See `docs/ChoppingList_Product_Spec.md`.
   <img src="docs/images/marketing/03-list-show-picture.png" alt="Original picture sheet" width="240" />
   <img src="docs/images/marketing/04-review-edit.png" alt="Edit list screen" width="240" />
 </p>
+
+- `Home`: upload by camera/gallery or jump straight to typing; recent lists are one tap away.
+- `Checklist`: grouped in aisle flow, with quick checkoff while shopping.
+- `Show Picture`: pull up the original list image any time to verify AI extraction.
+- `Edit`: fast corrections before or during checkout.
 
 ## Architecture Notes
 
