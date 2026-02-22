@@ -1,9 +1,12 @@
+import type { ReactNode } from "react";
+
 interface PrimaryButtonProps {
-  label: string;
+  label: ReactNode;
   onClick: () => void;
   variant?: "primary" | "secondary";
   disabled?: boolean;
   testId?: string;
+  ariaLabel?: string;
 }
 
 export const PrimaryButton = ({
@@ -11,7 +14,8 @@ export const PrimaryButton = ({
   onClick,
   variant = "primary",
   disabled = false,
-  testId
+  testId,
+  ariaLabel
 }: PrimaryButtonProps): JSX.Element => {
   return (
     <button
@@ -20,6 +24,7 @@ export const PrimaryButton = ({
       onClick={onClick}
       disabled={disabled}
       data-testid={testId}
+      aria-label={ariaLabel}
     >
       {label}
     </button>

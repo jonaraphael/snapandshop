@@ -7,9 +7,18 @@ import { useAppStore } from "../app/store";
 interface SectionCardProps {
   section: Section;
   onToggleItem: (itemId: string) => void;
+  onDismissSuggestedItem?: (itemId: string) => void;
+  suggestionCount?: number;
+  onSuggestMore?: () => void;
 }
 
-export const SectionCard = ({ section, onToggleItem }: SectionCardProps): JSX.Element => {
+export const SectionCard = ({
+  section,
+  onToggleItem,
+  onDismissSuggestedItem,
+  suggestionCount = 0,
+  onSuggestMore
+}: SectionCardProps): JSX.Element => {
   const prevRemaining = useRef(section.remainingCount);
   const [celebrationCount, setCelebrationCount] = useState(0);
   const [showDone, setShowDone] = useState(false);
@@ -41,12 +50,24 @@ export const SectionCard = ({ section, onToggleItem }: SectionCardProps): JSX.El
     <article className="section-card">
       <header className="section-header">
         <h2>{section.title}</h2>
-        <span className="section-count">{showDone ? "Done!" : `${section.remainingCount} left`}</span>
+        <div className="section-meta">
+          {suggestionCount > 0 && onSuggestMore ? (
+            <button type="button" className="section-suggest-btn" onClick={onSuggestMore}>
+              Suggest more
+            </button>
+          ) : null}
+          <span className="section-count">{showDone ? "Done!" : `${section.remainingCount} left`}</span>
+        </div>
       </header>
       <ConfettiBurst trigger={celebrationCount} disabled={reduceMotion} />
       <div className="section-items">
         {section.items.map((item) => (
-          <ChecklistItemRow key={item.id} item={item} onToggle={onToggleItem} />
+          <ChecklistItemRow
+            key={item.id}
+            item={item}
+            onToggle={onToggleItem}
+            onDismissSuggested={onDismissSuggestedItem}
+          />
         ))}
       </div>
     </article>

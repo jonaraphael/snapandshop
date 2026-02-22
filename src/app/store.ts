@@ -1,10 +1,21 @@
 import { create } from "zustand";
-import type { OcrMeta, PipelineState, Session, ShoppingItem, UiPrefs } from "./types";
+import type {
+  OcrMeta,
+  PipelineState,
+  RecentList,
+  RecentListItem,
+  Session,
+  ShoppingItem,
+  UiPrefs
+} from "./types";
 import { logDebug } from "../lib/debug/logger";
 import { createId } from "../lib/id";
+import { buildOrderedItems } from "../lib/order/itemOrder";
 
 const PREFS_KEY = "cl:prefs";
 const SESSION_KEY = "cl:lastSession";
+const RECENT_LISTS_KEY = "cl:recentLists";
+const MAX_RECENT_LISTS = 12;
 const defaultByoOpenAiKey = import.meta.env.VITE_OPENAI_API_KEY?.trim() || null;
 
 const defaultPrefs = (): UiPrefs => ({
@@ -26,6 +37,17 @@ const initialPipeline: PipelineState = {
 };
 
 const clampFontScale = (value: number): number => Math.min(1.6, Math.max(0.9, value));
+
+const normalizeListTitle = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.slice(0, 80);
+};
 
 const readLocal = <T>(key: string): T | null => {
   try {
@@ -73,7 +95,88 @@ const readSession = (): Session | null => {
   if (!stored) {
     return null;
   }
-  return stored;
+  return {
+    ...stored,
+    listTitle: normalizeListTitle(stored.listTitle)
+  };
+};
+
+const readRecentLists = (): RecentList[] => {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const stored = readLocal<RecentList[]>(RECENT_LISTS_KEY);
+  if (!Array.isArray(stored)) {
+    return [];
+  }
+
+  return stored
+    .filter((entry) => entry && typeof entry.id === "string" && Array.isArray(entry.items))
+    .map((entry) => ({
+      ...entry,
+      listTitle: normalizeListTitle(entry.listTitle)
+    }))
+    .slice(0, MAX_RECENT_LISTS);
+};
+
+const toRecentItem = (item: ShoppingItem): RecentListItem => ({
+  rawText: item.rawText,
+  canonicalName: item.canonicalName,
+  normalizedName: item.normalizedName,
+  quantity: item.quantity,
+  notes: item.notes,
+  categoryId: item.categoryId,
+  subcategoryId: item.subcategoryId,
+  orderHint: item.orderHint,
+  majorSectionId: item.majorSectionId ?? null,
+  majorSectionLabel: item.majorSectionLabel ?? null,
+  majorSubsection: item.majorSubsection ?? null,
+  majorSectionOrder: item.majorSectionOrder ?? null,
+  majorSectionItemOrder: item.majorSectionItemOrder ?? null
+});
+
+const buildListSignature = (items: RecentListItem[]): string => {
+  const normalized = Array.from(
+    new Set(
+      items
+        .map((item) => item.normalizedName.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  ).sort();
+  return normalized.join("|");
+};
+
+const rememberRecentList = (
+  recentLists: RecentList[],
+  items: ShoppingItem[],
+  listTitle: string | null
+): RecentList[] => {
+  if (!items.length) {
+    return recentLists;
+  }
+
+  const snapshotItems = items.map(toRecentItem);
+  const signature = buildListSignature(snapshotItems);
+  if (!signature) {
+    return recentLists;
+  }
+
+  const existingIndex = recentLists.findIndex((entry) => entry.signature === signature);
+  const existingId = existingIndex >= 0 ? recentLists[existingIndex].id : createId();
+  const now = new Date().toISOString();
+  const nextEntry: RecentList = {
+    id: existingId,
+    savedAt: now,
+    signature,
+    listTitle: normalizeListTitle(listTitle),
+    itemCount: snapshotItems.length,
+    preview: snapshotItems.map((item) => item.canonicalName).filter(Boolean).slice(0, 4),
+    items: snapshotItems
+  };
+
+  const rest = recentLists.filter((entry) => entry.id !== existingId);
+  return [nextEntry, ...rest].slice(0, MAX_RECENT_LISTS);
 };
 
 const makeSession = (): Session => {
@@ -82,6 +185,7 @@ const makeSession = (): Session => {
     id: createId(),
     createdAt: now,
     updatedAt: now,
+    listTitle: null,
     imageHash: null,
     thumbnailDataUrl: null,
     rawText: "",
@@ -113,6 +217,7 @@ const touchSession = (session: Session): Session => ({
 interface AppState {
   prefs: UiPrefs;
   session: Session | null;
+  recentLists: RecentList[];
   imageFile: File | null;
   imagePreviewUrl: string | null;
   pipeline: PipelineState;
@@ -129,9 +234,13 @@ interface AppState {
     ocrConfidence: number;
     imageHash: string | null;
     thumbnailDataUrl: string | null;
+    listTitle: string | null;
     usedMagicMode: boolean;
   }) => void;
-  replaceItems: (items: ShoppingItem[]) => void;
+  replaceItems: (items: ShoppingItem[], listTitle?: string | null) => void;
+  loadRecentList: (recentListId: string) => boolean;
+  addSuggestedItems: (items: RecentListItem[]) => void;
+  dismissSuggestedItem: (id: string) => void;
   addItem: (canonicalName: string) => void;
   updateItem: (id: string, patch: Partial<ShoppingItem>) => void;
   removeItem: (id: string) => void;
@@ -141,6 +250,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   prefs: readPrefs(),
   session: readSession(),
+  recentLists: readRecentLists(),
   imageFile: null,
   imagePreviewUrl: null,
   pipeline: initialPipeline,
@@ -202,7 +312,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
     writeSession(session);
   },
-  setExtractionResult: ({ rawText, ocrMeta, ocrConfidence, imageHash, thumbnailDataUrl, usedMagicMode }) => {
+  setExtractionResult: ({
+    rawText,
+    ocrMeta,
+    ocrConfidence,
+    imageHash,
+    thumbnailDataUrl,
+    listTitle,
+    usedMagicMode
+  }) => {
     const ensured = get().ensureSession();
     const updated = touchSession({
       ...ensured,
@@ -211,14 +329,129 @@ export const useAppStore = create<AppState>((set, get) => ({
       ocrConfidence,
       imageHash,
       thumbnailDataUrl,
+      listTitle: normalizeListTitle(listTitle),
       usedMagicMode
     });
     set({ session: updated });
     writeSession(updated);
   },
-  replaceItems: (items) => {
+  replaceItems: (items, listTitle) => {
     const session = get().ensureSession();
-    const updated = touchSession({ ...session, items });
+    const sessionTitle = normalizeListTitle(session.listTitle);
+    const providedTitle = listTitle === undefined ? undefined : normalizeListTitle(listTitle);
+    const nextTitle = providedTitle === undefined ? sessionTitle : providedTitle;
+    const updated = touchSession({ ...session, listTitle: nextTitle, items });
+    const recentLists = rememberRecentList(get().recentLists, items, nextTitle);
+    set({ session: updated, recentLists });
+    writeSession(updated);
+    writeLocal(RECENT_LISTS_KEY, recentLists);
+  },
+  loadRecentList: (recentListId) => {
+    const recent = get().recentLists.find((entry) => entry.id === recentListId);
+    if (!recent) {
+      return false;
+    }
+
+    const session = get().ensureSession();
+    const items = buildOrderedItems(
+      recent.items.map((item) => ({
+        id: createId(),
+        rawText: item.rawText || item.canonicalName,
+        canonicalName: item.canonicalName,
+        normalizedName: item.normalizedName || item.canonicalName.toLowerCase(),
+        quantity: item.quantity,
+        notes: item.notes,
+        categoryId: item.categoryId,
+        subcategoryId: item.subcategoryId,
+        orderHint: item.orderHint,
+        checked: false,
+        confidence: 0.9,
+        source: "manual",
+        categoryOverridden: false,
+        majorSectionId: item.majorSectionId ?? null,
+        majorSectionLabel: item.majorSectionLabel ?? null,
+        majorSubsection: item.majorSubsection ?? null,
+        majorSectionOrder: item.majorSectionOrder ?? null,
+        majorSectionItemOrder: item.majorSectionItemOrder ?? null,
+        suggested: false
+      }))
+    );
+
+    const updated = touchSession({
+      ...session,
+      listTitle: normalizeListTitle(recent.listTitle),
+      rawText: items.map((item) => item.rawText).join("\n"),
+      usedMagicMode: false,
+      items
+    });
+
+    set({ session: updated });
+    writeSession(updated);
+    return true;
+  },
+  addSuggestedItems: (items) => {
+    if (!items.length) {
+      return;
+    }
+
+    const session = get().ensureSession();
+    const existingNormalized = new Set(session.items.map((item) => item.normalizedName));
+    const appended: ShoppingItem[] = [];
+
+    for (const item of items) {
+      const normalized = item.normalizedName.trim().toLowerCase();
+      if (!normalized || existingNormalized.has(normalized)) {
+        continue;
+      }
+
+      existingNormalized.add(normalized);
+      appended.push({
+        id: createId(),
+        rawText: item.rawText || item.canonicalName,
+        canonicalName: item.canonicalName,
+        normalizedName: normalized,
+        quantity: item.quantity,
+        notes: item.notes,
+        categoryId: item.categoryId,
+        subcategoryId: item.subcategoryId,
+        orderHint: item.orderHint,
+        checked: false,
+        confidence: 0.7,
+        source: "manual",
+        categoryOverridden: false,
+        majorSectionId: item.majorSectionId ?? null,
+        majorSectionLabel: item.majorSectionLabel ?? null,
+        majorSubsection: item.majorSubsection ?? null,
+        majorSectionOrder: item.majorSectionOrder ?? null,
+        majorSectionItemOrder: item.majorSectionItemOrder ?? null,
+        suggested: true
+      });
+    }
+
+    if (!appended.length) {
+      return;
+    }
+
+    const merged = buildOrderedItems([...session.items, ...appended]);
+    const updated = touchSession({ ...session, items: merged });
+    set({ session: updated });
+    writeSession(updated);
+  },
+  dismissSuggestedItem: (id) => {
+    const session = get().session;
+    if (!session) {
+      return;
+    }
+
+    const target = session.items.find((item) => item.id === id);
+    if (!target || !target.suggested) {
+      return;
+    }
+
+    const updated = touchSession({
+      ...session,
+      items: session.items.filter((item) => item.id !== id)
+    });
     set({ session: updated });
     writeSession(updated);
   },
@@ -247,7 +480,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       majorSectionLabel: null,
       majorSubsection: null,
       majorSectionOrder: null,
-      majorSectionItemOrder: null
+      majorSectionItemOrder: null,
+      suggested: false
     };
     const updated = touchSession({ ...session, items: [...session.items, item] });
     set({ session: updated });

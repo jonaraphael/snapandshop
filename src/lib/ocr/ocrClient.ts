@@ -236,7 +236,8 @@ const buildItems = (lines: string[]): ShoppingItem[] => {
       majorSectionLabel: null,
       majorSubsection: null,
       majorSectionOrder: null,
-      majorSectionItemOrder: null
+      majorSectionItemOrder: null,
+      suggested: false
     });
   }
 

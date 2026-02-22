@@ -65,5 +65,8 @@ This repo can also deploy to GitHub Pages via Actions.
 
 Notes:
 - The workflow file is `.github/workflows/github-pages.yml`.
-- It builds with `VITE_BASE_PATH=/<repo-name>/`, uploads `dist`, and publishes.
+- It auto-resolves `VITE_BASE_PATH`:
+  - `/<repo-name>/` for project pages
+  - `/` for `<owner>.github.io` repos or when `CNAME` exists
+  - optional override via repo variable `PAGES_BASE_PATH`
 - SPA fallback is enabled by copying `dist/index.html` to `dist/404.html`.

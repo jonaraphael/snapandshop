@@ -31,6 +31,7 @@ Request:
 Response (strict):
 ```json
 {
+  "list_title": "Saag paneer and fruit run",
   "items": [
     {
       "raw_text": "2 miik",
@@ -48,11 +49,12 @@ Response (strict):
 ```
 
 ## JSON Schema Name
-`shopping_list_extraction_v2`
+`shopping_list_extraction_v3`
 
 All fields are required, `additionalProperties` is false.
 
 Per-item fields:
+- `list_title` (short shopping-run name)
 - `raw_text`
 - `canonical_name`
 - `quantity`

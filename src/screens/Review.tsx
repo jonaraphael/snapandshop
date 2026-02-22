@@ -60,13 +60,14 @@ export const Review = (): JSX.Element => {
         model: import.meta.env.VITE_OPENAI_MODEL
       });
       const mapped = mapMagicModeItems(result.items);
-      replaceItems(buildOrderedItems(mapped));
+      replaceItems(buildOrderedItems(mapped), result.list_title);
       setExtractionResult({
         rawText: mapped.map((item) => item.rawText).join("\n"),
         ocrMeta: session?.ocrMeta ?? null,
         ocrConfidence: session?.ocrConfidence ?? 0.8,
         imageHash: session?.imageHash ?? null,
         thumbnailDataUrl: session?.thumbnailDataUrl ?? null,
+        listTitle: result.list_title,
         usedMagicMode: true
       });
       setMagicWarnings(result.warnings ?? []);

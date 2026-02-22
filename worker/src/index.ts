@@ -360,6 +360,9 @@ const parserUserPrompt = `Return one object per item.
 - Split multiple items on one line.
 - Never invent unseen items.
 - If uncertain, include your best guess and add warning text.
+- list_title should be a short, natural shopping-run name (2-6 words). If one recipe/theme dominates, reflect it.
+- list_title must be specific and memorable, never generic ("grocery run", "shopping list", "grocery and household run").
+- If there is no clear theme, build a slightly silly title using the two most unusual items.
 - category_hint should be the best coarse aisle bucket for compatibility.
 - Choose major_section only from the scaffold section IDs.
 - Choose subsection from the scaffold subsection labels when possible, else null.
@@ -370,13 +373,14 @@ ${scaffoldPrompt}`;
 
 const outputFormat = {
   type: "json_schema",
-  name: "shopping_list_extraction_v2",
+  name: "shopping_list_extraction_v3",
   strict: true,
   schema: {
     type: "object",
     additionalProperties: false,
-    required: ["items", "warnings"],
+    required: ["list_title", "items", "warnings"],
     properties: {
+      list_title: { type: ["string", "null"] },
       items: {
         type: "array",
         items: {

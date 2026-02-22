@@ -1,36 +1,42 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
 import { PrimaryButton } from "../components/PrimaryButton";
-import { TextSizeControl } from "../components/TextSizeControl";
-import { clearDebugLog, getDebugText, logDebug } from "../lib/debug/logger";
+import { logDebug } from "../lib/debug/logger";
 
 export const Landing = (): JSX.Element => {
   const navigate = useNavigate();
   const setImageInput = useAppStore((state) => state.setImageInput);
+  const recentLists = useAppStore((state) => state.recentLists);
+  const loadRecentList = useAppStore((state) => state.loadRecentList);
   const ensureSession = useAppStore((state) => state.ensureSession);
   const prefs = useAppStore((state) => state.prefs);
   const setPrefs = useAppStore((state) => state.setPrefs);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const [showTextSize, setShowTextSize] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
-  const [debugText, setDebugText] = useState("");
-  const [copyStatus, setCopyStatus] = useState("");
+  const [dragActive, setDragActive] = useState(false);
   const pickerTimerRef = useRef<number | null>(null);
   const pickerSourceRef = useRef<"camera" | "gallery" | null>(null);
-
-  const refreshDebug = (): void => {
-    setDebugText(getDebugText());
-  };
+  const dragDepthRef = useRef(0);
 
   const clearPickerTimer = (): void => {
     if (pickerTimerRef.current !== null) {
       window.clearTimeout(pickerTimerRef.current);
       pickerTimerRef.current = null;
     }
+  };
+
+  const armPickerTimeout = (source: "camera" | "gallery"): void => {
+    clearPickerTimer();
+    pickerSourceRef.current = source;
+    pickerTimerRef.current = window.setTimeout(() => {
+      logDebug("picker_closed_no_change", {
+        source,
+        note: "No input change event after picker interaction"
+      });
+      pickerTimerRef.current = null;
+    }, 3000);
   };
 
   const openPicker = (source: "camera" | "gallery"): void => {
@@ -46,22 +52,45 @@ export const Landing = (): JSX.Element => {
     logDebug("picker_open_requested", { source });
   };
 
-  const armPickerTimeout = (source: "camera" | "gallery"): void => {
-    clearPickerTimer();
-    pickerSourceRef.current = source;
-    pickerTimerRef.current = window.setTimeout(() => {
-      logDebug("picker_closed_no_change", {
-        source,
-        note: "No input change event after picker interaction"
-      });
-      pickerTimerRef.current = null;
-    }, 3000);
+  const ensureApiKeyForImageParse = (): boolean => {
+    const existingKey = prefs.byoOpenAiKey?.trim() ?? "";
+    if (existingKey) {
+      return true;
+    }
+
+    const prompted = window.prompt(
+      "Paste your OpenAI API key (sk-...). It is saved only in this browser, never uploaded by us, and not used for any purpose other than reading this image."
+    );
+
+    if (prompted === null) {
+      logDebug("byo_key_prompt_cancelled");
+      return false;
+    }
+
+    const trimmed = prompted.trim();
+    if (!trimmed) {
+      logDebug("byo_key_prompt_empty");
+      return false;
+    }
+
+    setPrefs({
+      byoOpenAiKey: trimmed,
+      magicModeDefault: true
+    });
+    logDebug("byo_key_prompt_saved", {
+      length: trimmed.length
+    });
+    return true;
   };
 
   const onSelectFile = async (file: File | null, source: "camera" | "gallery"): Promise<void> => {
     clearPickerTimer();
     if (!file) {
       logDebug("file_selected_empty", { source });
+      return;
+    }
+
+    if (!ensureApiKeyForImageParse()) {
       return;
     }
 
@@ -88,12 +117,65 @@ export const Landing = (): JSX.Element => {
     }
   };
 
-  const onToggleDebug = (): void => {
-    const next = !showDebug;
-    setShowDebug(next);
-    if (next) {
-      refreshDebug();
+  const isFileDrag = (event: DragEvent<HTMLElement>): boolean => {
+    return Array.from(event.dataTransfer?.types ?? []).includes("Files");
+  };
+
+  const onDragEnter = (event: DragEvent<HTMLElement>): void => {
+    if (!isFileDrag(event)) {
+      return;
     }
+    event.preventDefault();
+    dragDepthRef.current += 1;
+    setDragActive(true);
+  };
+
+  const onDragOver = (event: DragEvent<HTMLElement>): void => {
+    if (!isFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  };
+
+  const onDragLeave = (event: DragEvent<HTMLElement>): void => {
+    if (!isFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) {
+      setDragActive(false);
+    }
+  };
+
+  const onDropFile = (event: DragEvent<HTMLElement>): void => {
+    if (!isFileDrag(event)) {
+      return;
+    }
+    event.preventDefault();
+    dragDepthRef.current = 0;
+    setDragActive(false);
+    const file = event.dataTransfer.files?.[0] ?? null;
+    if (!file) {
+      logDebug("drop_file_empty");
+      return;
+    }
+    if (file.type && !file.type.startsWith("image/")) {
+      logDebug("drop_file_rejected_non_image", {
+        name: file.name,
+        type: file.type
+      });
+      return;
+    }
+
+    pickerSourceRef.current = null;
+    logDebug("drop_file_selected", {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+    void onSelectFile(file, "gallery");
   };
 
   useEffect(() => {
@@ -110,72 +192,51 @@ export const Landing = (): JSX.Element => {
     };
   }, []);
 
-  const onCopyDebug = async (): Promise<void> => {
-    const content = getDebugText();
-    setDebugText(content);
-
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopyStatus("Copied");
-      logDebug("debug_copied");
-    } catch (error) {
-      setCopyStatus("Copy failed");
-      logDebug("debug_copy_failed", {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
+  const formatRecentDate = (isoDate: string): string => {
+    const date = new Date(isoDate);
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    }).format(date);
   };
 
-  const onResetCache = async (): Promise<void> => {
-    try {
-      if ("serviceWorker" in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map((registration) => registration.unregister()));
-      }
-      if ("caches" in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map((key) => caches.delete(key)));
-      }
-      logDebug("debug_reset_cache_complete");
-      refreshDebug();
-      setCopyStatus("Cache reset done. Reload page.");
-    } catch (error) {
-      logDebug("debug_reset_cache_failed", {
-        error: error instanceof Error ? error.message : String(error)
-      });
-      setCopyStatus("Cache reset failed");
+  const gradientForId = (id: string): string => {
+    const gradients = [
+      "linear-gradient(135deg, #f0b37e 0%, #f6e6d0 100%)",
+      "linear-gradient(135deg, #8ac9a5 0%, #d7efe2 100%)",
+      "linear-gradient(135deg, #7fb7df 0%, #dcecf8 100%)",
+      "linear-gradient(135deg, #d79bd8 0%, #f3e2f3 100%)",
+      "linear-gradient(135deg, #a8b67a 0%, #e7edd4 100%)"
+    ];
+    let hash = 0;
+    for (const char of id) {
+      hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
     }
-  };
-
-  const onSetAiKey = (): void => {
-    const nextValue = window.prompt(
-      "Paste OpenAI API key (sk-...). Leave blank to clear. This stays only on this device.",
-      prefs.byoOpenAiKey ?? ""
-    );
-    if (nextValue === null) {
-      return;
-    }
-
-    const trimmed = nextValue.trim();
-    setPrefs({
-      byoOpenAiKey: trimmed || null,
-      magicModeDefault: true
-    });
-
-    logDebug("byo_key_updated", {
-      hasKey: Boolean(trimmed),
-      length: trimmed.length
-    });
+    return gradients[hash % gradients.length];
   };
 
   return (
-    <main className="screen landing-screen">
-      <section className="hero-card">
+    <main
+      className="screen landing-screen"
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDropFile}
+    >
+      <section className={`hero-card${dragActive ? " drag-active" : ""}`}>
         <h1 className="hero-title">ChoppingList.store</h1>
         <p className="hero-subtitle">Snap your list. Shop faster.</p>
         <div className="cta-stack">
           <PrimaryButton
-            label="Take a photo"
+            label={
+              <span className="cta-content">
+                <span className="cta-emoji">📷</span>
+                <span className="cta-text">Take photo</span>
+              </span>
+            }
+            ariaLabel="Take a photo"
+            variant="secondary"
             onClick={() => {
               logDebug("tap_take_photo");
               openPicker("camera");
@@ -183,7 +244,13 @@ export const Landing = (): JSX.Element => {
             testId="take-photo"
           />
           <PrimaryButton
-            label="Choose a photo"
+            label={
+              <span className="cta-content">
+                <span className="cta-emoji">🖼️</span>
+                <span className="cta-text">Choose photo</span>
+              </span>
+            }
+            ariaLabel="Choose a photo"
             variant="secondary"
             onClick={() => {
               logDebug("tap_choose_photo");
@@ -191,64 +258,48 @@ export const Landing = (): JSX.Element => {
             }}
             testId="choose-photo"
           />
+          <PrimaryButton
+            label={
+              <span className="cta-content">
+                <span className="cta-emoji">✏️</span>
+                <span className="cta-text">Type list</span>
+              </span>
+            }
+            ariaLabel="Type your list"
+            variant="secondary"
+            onClick={() => {
+              logDebug("tap_type_list");
+              navigate(ROUTES.review);
+            }}
+            testId="type-list"
+          />
         </div>
 
-        <div className="links-row">
-          <button type="button" className="link-btn" onClick={() => navigate(ROUTES.review)}>
-            Type it instead
-          </button>
-          <button type="button" className="link-btn" onClick={() => setShowTextSize(true)}>
-            Text size
-          </button>
-          <button type="button" className="link-btn" onClick={onSetAiKey}>
-            AI Key
-          </button>
-          <button type="button" className="link-btn" onClick={() => setShowPrivacy((value) => !value)}>
-            Privacy
-          </button>
-          <button type="button" className="link-btn" onClick={onToggleDebug}>
-            Debug
-          </button>
-        </div>
-
-        {showPrivacy ? (
-          <p className="hint-text">
-            Frontier handwriting parsing runs first by default. Images are sent to OpenAI using your BYO key or your
-            configured proxy endpoint. If frontier is unavailable, local OCR fallback runs on-device.
-          </p>
-        ) : null}
-
-        <p className="hint-text">
-          AI mode: {prefs.magicModeDefault ? "On" : "Off"} | BYO key: {prefs.byoOpenAiKey ? "Configured" : "Not set"}
-        </p>
-
-        {showDebug ? (
-          <section className="debug-card" aria-label="Debug log">
-            <p className="hint-text">Reproduce the issue, tap Refresh, then tap Copy and paste here.</p>
-            <div className="debug-actions">
-              <button type="button" className="ghost-btn" onClick={refreshDebug}>
-                Refresh
-              </button>
-              <button type="button" className="ghost-btn" onClick={() => void onCopyDebug()}>
-                Copy
-              </button>
-              <button
-                type="button"
-                className="ghost-btn"
-                onClick={() => {
-                  clearDebugLog();
-                  refreshDebug();
-                  logDebug("debug_cleared");
-                }}
-              >
-                Clear
-              </button>
-              <button type="button" className="ghost-btn" onClick={() => void onResetCache()}>
-                Reset Cache
-              </button>
+        {recentLists.length ? (
+          <section className="recent-lists" aria-label="Recent lists">
+            <h2 className="recent-title">Recent lists</h2>
+            <div className="recent-list-grid">
+              {recentLists.map((recent) => (
+                <button
+                  key={recent.id}
+                  type="button"
+                  className="recent-list-btn"
+                  style={{ "--recent-gradient": gradientForId(recent.id) } as CSSProperties}
+                  onClick={() => {
+                    if (loadRecentList(recent.id)) {
+                      navigate(ROUTES.list);
+                    }
+                  }}
+                >
+                  <span className="recent-list-name">{recent.listTitle?.trim() || "Shopping list"}</span>
+                  <span className="recent-list-date">{formatRecentDate(recent.savedAt)}</span>
+                  <span className="recent-list-preview">
+                    {recent.preview.length ? recent.preview.join(" • ") : "Saved list"}
+                  </span>
+                  <span className="recent-list-meta">{recent.itemCount} items</span>
+                </button>
+              ))}
             </div>
-            {copyStatus ? <p className="hint-text">{copyStatus}</p> : null}
-            <textarea className="debug-textarea" readOnly value={debugText} rows={10} />
           </section>
         ) : null}
       </section>
@@ -286,7 +337,6 @@ export const Landing = (): JSX.Element => {
           logDebug("gallery_input_click");
         }}
       />
-      <TextSizeControl open={showTextSize} onClose={() => setShowTextSize(false)} />
     </main>
   );
 };

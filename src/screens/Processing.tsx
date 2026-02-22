@@ -4,7 +4,6 @@ import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
 import { logDebug } from "../lib/debug/logger";
 import { mapMagicModeItems, requestMagicModeParse } from "../lib/ocr/magicMode";
-import { processImageToItems } from "../lib/ocr/ocrClient";
 import { buildOrderedItems } from "../lib/order/itemOrder";
 
 export const Processing = (): JSX.Element => {
@@ -15,7 +14,6 @@ export const Processing = (): JSX.Element => {
   const setExtractionResult = useAppStore((state) => state.setExtractionResult);
   const replaceItems = useAppStore((state) => state.replaceItems);
   const controllerRef = useRef<AbortController | null>(null);
-  const lastStepRef = useRef("");
 
   useEffect(() => {
     logDebug("processing_effect_start", {
@@ -23,7 +21,6 @@ export const Processing = (): JSX.Element => {
       imageName: imageFile?.name ?? null,
       imageType: imageFile?.type ?? null,
       imageSize: imageFile?.size ?? null,
-      magicModeDefault: prefs.magicModeDefault,
       hasByoOpenAiKey: Boolean(prefs.byoOpenAiKey)
     });
 
@@ -32,128 +29,67 @@ export const Processing = (): JSX.Element => {
       navigate(ROUTES.landing, { replace: true });
       return;
     }
+    if (!prefs.byoOpenAiKey?.trim()) {
+      setPipeline({
+        status: "error",
+        progress: 0,
+        label: "API key required",
+        error: "OpenAI API key is required to process photos."
+      });
+      return;
+    }
 
     let cancelled = false;
 
     const run = async (): Promise<void> => {
       try {
         controllerRef.current = new AbortController();
-
-        if (prefs.magicModeDefault) {
-          setPipeline({
-            status: "ocr",
-            progress: 0.12,
-            label: "AI handwriting model",
-            error: null
-          });
-
-          logDebug("processing_frontier_start", {
-            hasByoOpenAiKey: Boolean(prefs.byoOpenAiKey)
-          });
-
-          try {
-            const frontier = await requestMagicModeParse({
-              imageBlob: imageFile,
-              byoOpenAiKey: prefs.byoOpenAiKey,
-              model: import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5.2",
-              signal: controllerRef.current.signal
-            });
-
-            if (cancelled) {
-              logDebug("processing_cancelled_before_frontier_commit");
-              return;
-            }
-
-            const mapped = mapMagicModeItems(frontier.items);
-            if (!mapped.length) {
-              throw new Error("Frontier parser returned zero items");
-            }
-
-            const ordered = buildOrderedItems(mapped);
-
-            setExtractionResult({
-              rawText: mapped.map((item) => item.rawText).join("\n"),
-              ocrMeta: null,
-              ocrConfidence: 0.95,
-              imageHash: null,
-              thumbnailDataUrl: null,
-              usedMagicMode: true
-            });
-            replaceItems(ordered);
-            setPipeline({ status: "review_ready", progress: 1, label: "Ready", error: null });
-
-            logDebug("processing_frontier_success", {
-              itemCount: ordered.length,
-              warningCount: frontier.warnings.length,
-              warningPreview: frontier.warnings.slice(0, 3)
-            });
-
-            navigate(ROUTES.list, { replace: true });
-            return;
-          } catch (error) {
-            if (error instanceof DOMException && error.name === "AbortError") {
-              logDebug("processing_aborted");
-              return;
-            }
-
-            logDebug("processing_frontier_failed_local_fallback", {
-              message: error instanceof Error ? error.message : String(error)
-            });
-
-            setPipeline({
-              status: "ocr",
-              progress: 0.2,
-              label: "AI unavailable, using local OCR",
-              error: null
-            });
-          }
-        }
-
-        setPipeline({ status: "preprocess", progress: 0.2, label: "Preparing image", error: null });
-        logDebug("processing_begin_local_ocr", {
-          fileName: imageFile.name,
-          fileSize: imageFile.size
+        setPipeline({
+          status: "ocr",
+          progress: 0.12,
+          label: "AI handwriting model",
+          error: null
         });
 
-        const result = await processImageToItems(
-          imageFile,
-          (step) => {
-            const key = `${step.status ?? ""}:${step.label ?? ""}:${step.progress ?? ""}`;
-            if (lastStepRef.current !== key) {
-              lastStepRef.current = key;
-              logDebug("processing_step", {
-                status: step.status,
-                label: step.label,
-                progress: step.progress
-              });
-            }
-            setPipeline(step);
-          },
-          controllerRef.current.signal
-        );
+        logDebug("processing_frontier_start", {
+          hasByoOpenAiKey: true
+        });
+
+        const frontier = await requestMagicModeParse({
+          imageBlob: imageFile,
+          byoOpenAiKey: prefs.byoOpenAiKey,
+          model: import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5.2",
+          signal: controllerRef.current.signal
+        });
 
         if (cancelled) {
-          logDebug("processing_cancelled_before_commit");
+          logDebug("processing_cancelled_before_frontier_commit");
           return;
         }
 
-        const ordered = buildOrderedItems(result.items);
+        const mapped = mapMagicModeItems(frontier.items);
+        if (!mapped.length) {
+          throw new Error("AI parser returned zero items.");
+        }
+
+        const ordered = buildOrderedItems(mapped);
 
         setExtractionResult({
-          rawText: result.rawText,
-          ocrMeta: result.ocrMeta,
-          ocrConfidence: result.ocrConfidence,
-          imageHash: result.imageHash,
-          thumbnailDataUrl: result.thumbnailDataUrl,
-          usedMagicMode: false
+          rawText: mapped.map((item) => item.rawText).join("\n"),
+          ocrMeta: null,
+          ocrConfidence: 0.95,
+          imageHash: null,
+          thumbnailDataUrl: null,
+          listTitle: frontier.list_title,
+          usedMagicMode: true
         });
-        replaceItems(ordered);
+        replaceItems(ordered, frontier.list_title);
         setPipeline({ status: "review_ready", progress: 1, label: "Ready", error: null });
 
-        logDebug("processing_local_success", {
+        logDebug("processing_frontier_success", {
           itemCount: ordered.length,
-          ocrConfidence: result.ocrConfidence,
-          rawTextLength: result.rawText.length
+          warningCount: frontier.warnings.length,
+          warningPreview: frontier.warnings.slice(0, 3)
         });
 
         navigate(ROUTES.list, { replace: true });
@@ -179,7 +115,7 @@ export const Processing = (): JSX.Element => {
       controllerRef.current?.abort();
       logDebug("processing_effect_cleanup");
     };
-  }, [imageFile, navigate, prefs.byoOpenAiKey, prefs.magicModeDefault, replaceItems, setExtractionResult, setPipeline]);
+  }, [imageFile, navigate, prefs.byoOpenAiKey, replaceItems, setExtractionResult, setPipeline]);
 
   const pipeline = useAppStore((state) => state.pipeline);
 

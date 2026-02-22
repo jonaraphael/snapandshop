@@ -9,7 +9,7 @@ import {
   MAJOR_SECTION_ORDER
 } from "../order/majorSectionOrder";
 
-export const MAGIC_SCHEMA_NAME = "shopping_list_extraction_v2";
+export const MAGIC_SCHEMA_NAME = "shopping_list_extraction_v3";
 
 const categoryEnum = [
   "produce",
@@ -34,6 +34,9 @@ const parserUserInstructions = `Return one object per item.
 - Split multiple items on one line.
 - Never invent unseen items.
 - If uncertain, include your best guess and add warning text.
+- list_title should be a short, natural shopping-run name (2-6 words). If one recipe/theme dominates, reflect it.
+- list_title must be specific and memorable, never generic ("grocery run", "shopping list", "grocery and household run").
+- If there is no clear theme, build a slightly silly title using the two most unusual items.
 - category_hint should be the best coarse aisle bucket for compatibility.
 - Choose major_section only from the scaffold section IDs.
 - Choose subsection from the scaffold subsection labels when possible, else null.
@@ -49,8 +52,11 @@ export const MAGIC_OUTPUT_FORMAT = {
   schema: {
     type: "object",
     additionalProperties: false,
-    required: ["items", "warnings"],
+    required: ["list_title", "items", "warnings"],
     properties: {
+      list_title: {
+        type: ["string", "null"]
+      },
       items: {
         type: "array",
         items: {
@@ -164,86 +170,282 @@ const extractOutputText = (body: any): string => {
   throw new Error("Magic Mode returned an unexpected response shape");
 };
 
+const genericTitlePhrases = new Set([
+  "grocery run",
+  "grocery and household run",
+  "shopping list",
+  "shopping run",
+  "weekly groceries",
+  "weekly grocery run",
+  "household run",
+  "grocery trip",
+  "errands run",
+  "weekly essentials",
+  "weekly basics"
+]);
+
+const genericTitleWords = new Set([
+  "grocery",
+  "groceries",
+  "shopping",
+  "household",
+  "run",
+  "list",
+  "weekly",
+  "essentials",
+  "basic",
+  "basics",
+  "supplies",
+  "restock",
+  "errands",
+  "trip"
+]);
+
+const commonItemWords = new Set([
+  "milk",
+  "eggs",
+  "bread",
+  "butter",
+  "cheese",
+  "yogurt",
+  "chicken",
+  "beef",
+  "pork",
+  "fish",
+  "rice",
+  "pasta",
+  "beans",
+  "onion",
+  "onions",
+  "potato",
+  "potatoes",
+  "tomato",
+  "tomatoes",
+  "apple",
+  "apples",
+  "banana",
+  "bananas",
+  "lettuce",
+  "carrot",
+  "carrots",
+  "cereal",
+  "coffee",
+  "tea",
+  "water",
+  "juice",
+  "soda",
+  "chips",
+  "cookies",
+  "soap",
+  "shampoo",
+  "toothpaste",
+  "paper",
+  "towels",
+  "toilet",
+  "trash",
+  "detergent",
+  "cleaner",
+  "snacks"
+]);
+
+const hashString = (value: string): number => {
+  let hash = 0;
+  for (const char of value) {
+    hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
+  }
+  return hash;
+};
+
+const tokenize = (value: string): string[] => {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+};
+
+const cleanTitle = (value: string | null | undefined): string | null => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  return trimmed || null;
+};
+
+const isGoodTitle = (title: string, items: MagicModeResponse["items"]): boolean => {
+  const normalizedTitle = title.trim().toLowerCase();
+  if (!normalizedTitle) {
+    return false;
+  }
+  if (genericTitlePhrases.has(normalizedTitle)) {
+    return false;
+  }
+
+  const titleTokens = tokenize(title);
+  if (titleTokens.length < 2) {
+    return false;
+  }
+
+  const itemTokenSet = new Set<string>();
+  for (const item of items) {
+    for (const token of tokenize(item.canonical_name)) {
+      if (token.length > 1) {
+        itemTokenSet.add(token);
+      }
+    }
+  }
+
+  const genericCount = titleTokens.filter((token) => genericTitleWords.has(token)).length;
+  const specificCount = titleTokens.filter((token) => itemTokenSet.has(token)).length;
+
+  if (specificCount === 0 && genericCount > 0) {
+    return false;
+  }
+  if (genericCount / titleTokens.length > 0.7) {
+    return false;
+  }
+
+  return true;
+};
+
+const toDisplayItem = (value: string): string => {
+  const cleaned = value
+    .trim()
+    .replace(/[^a-z0-9\s-]/gi, " ")
+    .replace(/\s+/g, " ");
+  if (!cleaned) {
+    return "";
+  }
+
+  return cleaned
+    .split(" ")
+    .slice(0, 3)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const pickUnusualItems = (items: MagicModeResponse["items"]): string[] => {
+  const seen = new Set<string>();
+  const ranked = items
+    .map((item) => item.canonical_name.trim())
+    .filter(Boolean)
+    .filter((name) => {
+      const key = name.toLowerCase();
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .map((name) => {
+      const tokens = tokenize(name);
+      const noveltyCount = tokens.filter((token) => !commonItemWords.has(token)).length;
+      const score = noveltyCount * 2 + (tokens.length > 1 ? 0.8 : 0) + Math.min(name.length, 26) / 12;
+      return { name, score };
+    })
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+      return right.name.length - left.name.length;
+    });
+
+  return ranked
+    .slice(0, 2)
+    .map((entry) => toDisplayItem(entry.name))
+    .filter(Boolean);
+};
+
+const fallbackListTitle = (items: MagicModeResponse["items"]): string => {
+  const picks = pickUnusualItems(items);
+  if (picks.length >= 2) {
+    const [first, second] = picks;
+    const templates = [
+      `${first} + ${second} side quest`,
+      `${first} meets ${second}`,
+      `${first} and ${second} adventure`,
+      `${first} x ${second} detour`
+    ];
+    return templates[hashString(`${first}|${second}`) % templates.length];
+  }
+  if (picks.length === 1) {
+    return `${picks[0]} side quest`;
+  }
+  return "Cart of Curiosities";
+};
+
+const finalizeListTitle = (listTitle: string | null, items: MagicModeResponse["items"]): string => {
+  const cleaned = cleanTitle(listTitle);
+  if (cleaned && isGoodTitle(cleaned, items)) {
+    return cleaned;
+  }
+  return fallbackListTitle(items);
+};
+
 export const requestMagicModeParse = async (input: {
   imageBlob: Blob;
   byoOpenAiKey: string | null;
   model?: string;
   signal?: AbortSignal;
 }): Promise<MagicModeResponse> => {
-  const imageBase64 = await blobToBase64(input.imageBlob);
-
-  if (input.byoOpenAiKey) {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      signal: input.signal,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${input.byoOpenAiKey}`
-      },
-      body: JSON.stringify({
-        model: input.model ?? "gpt-5.2",
-        input: [
-          {
-            role: "system",
-            content: [
-              {
-                type: "input_text",
-                text: parserSystemPrompt
-              }
-            ]
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: parserUserInstructions
-              },
-              {
-                type: "input_image",
-                image_url: `data:image/jpeg;base64,${imageBase64}`,
-                detail: "high"
-              }
-            ]
-          }
-        ],
-        text: {
-          format: MAGIC_OUTPUT_FORMAT
-        }
-      })
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Magic Mode request failed: ${response.status} ${body}`);
-    }
-
-    const body = await response.json();
-    const outputText = extractOutputText(body);
-    return JSON.parse(outputText) as MagicModeResponse;
+  const apiKey = input.byoOpenAiKey?.trim();
+  if (!apiKey) {
+    throw new Error("OpenAI API key is required to process photos.");
   }
 
-  const proxyResponse = await fetch("/api/vision-parse", {
+  const imageBase64 = await blobToBase64(input.imageBlob);
+  const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     signal: input.signal,
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      imageBase64,
-      mimeType: input.imageBlob.type || "image/jpeg"
+      model: input.model ?? "gpt-5.2",
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: parserSystemPrompt
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: parserUserInstructions
+            },
+            {
+              type: "input_image",
+              image_url: `data:image/jpeg;base64,${imageBase64}`,
+              detail: "high"
+            }
+          ]
+        }
+      ],
+      text: {
+        format: MAGIC_OUTPUT_FORMAT
+      }
     })
   });
 
-  if (!proxyResponse.ok) {
-    const body = await proxyResponse.text();
-    if (proxyResponse.status === 404) {
-      throw new Error("Magic Mode proxy endpoint is not configured");
-    }
-    throw new Error(`Magic Mode proxy failed: ${proxyResponse.status} ${body}`);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Magic Mode request failed: ${response.status} ${body}`);
   }
 
-  return (await proxyResponse.json()) as MagicModeResponse;
+  const body = await response.json();
+  const outputText = extractOutputText(body);
+  const parsed = JSON.parse(outputText) as MagicModeResponse;
+  return {
+    ...parsed,
+    list_title: finalizeListTitle(parsed.list_title, parsed.items)
+  };
 };
 
 export const mapMagicModeItems = (items: MagicModeResponse["items"]): ShoppingItem[] => {
@@ -287,7 +489,8 @@ export const mapMagicModeItems = (items: MagicModeResponse["items"]): ShoppingIt
         majorSectionLabel: item.major_section ? MAJOR_SECTION_LABELS[item.major_section] : null,
         majorSubsection: subsection,
         majorSectionOrder: sectionOrder,
-        majorSectionItemOrder: withinSectionOrder
+        majorSectionItemOrder: withinSectionOrder,
+        suggested: false
       };
     });
 };

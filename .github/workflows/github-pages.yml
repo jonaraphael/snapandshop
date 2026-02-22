@@ -30,10 +30,35 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Compute base path
+        id: base
+        shell: bash
+        env:
+          PAGES_BASE_PATH: ${{ vars.PAGES_BASE_PATH }}
+        run: |
+          repo="${GITHUB_REPOSITORY#*/}"
+          owner="${GITHUB_REPOSITORY_OWNER}"
+
+          if [[ -n "${PAGES_BASE_PATH}" ]]; then
+            base="${PAGES_BASE_PATH}"
+          elif [[ -f "CNAME" || "$repo" == "${owner}.github.io" ]]; then
+            base="/"
+          else
+            base="/${repo}/"
+          fi
+
+          if [[ "${base}" != "/" ]]; then
+            base="/${base#/}"
+            base="${base%/}/"
+          fi
+
+          echo "base_path=${base}" >> "${GITHUB_OUTPUT}"
+          echo "Resolved VITE_BASE_PATH=${base}"
+
       - name: Build
         run: npm run build
         env:
-          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_BASE_PATH: ${{ steps.base.outputs.base_path }}
 
       - name: SPA fallback and no-jekyll
         run: |

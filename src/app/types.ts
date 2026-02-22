@@ -62,6 +62,7 @@ export interface ShoppingItem {
   majorSubsection?: string | null;
   majorSectionOrder?: number | null;
   majorSectionItemOrder?: number | null;
+  suggested?: boolean;
 }
 
 export interface Section {
@@ -84,6 +85,7 @@ export interface Session {
   id: string;
   createdAt: string;
   updatedAt: string;
+  listTitle: string | null;
   imageHash: string | null;
   thumbnailDataUrl: string | null;
   rawText: string;
@@ -128,6 +130,7 @@ export interface ParsedItem {
 }
 
 export interface MagicModeResponse {
+  list_title: string | null;
   items: Array<{
     raw_text: string;
     canonical_name: string;
@@ -139,4 +142,30 @@ export interface MagicModeResponse {
     within_section_order: number | null;
   }>;
   warnings: string[];
+}
+
+export interface RecentListItem {
+  rawText: string;
+  canonicalName: string;
+  normalizedName: string;
+  quantity: string | null;
+  notes: string | null;
+  categoryId: CategoryId;
+  subcategoryId: string | null;
+  orderHint: number | null;
+  majorSectionId?: MajorSectionId | null;
+  majorSectionLabel?: string | null;
+  majorSubsection?: string | null;
+  majorSectionOrder?: number | null;
+  majorSectionItemOrder?: number | null;
+}
+
+export interface RecentList {
+  id: string;
+  savedAt: string;
+  signature: string;
+  listTitle: string | null;
+  itemCount: number;
+  preview: string[];
+  items: RecentListItem[];
 }
