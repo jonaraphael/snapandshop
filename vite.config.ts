@@ -16,6 +16,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      workbox: {
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true
+      },
       includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
         name: "ChoppingList.store",
