@@ -31,7 +31,7 @@ export const App = (): JSX.Element => {
   }, [fontScale]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <RouteLogger />
       <Routes>
         <Route path={ROUTES.landing} element={<Landing />} />

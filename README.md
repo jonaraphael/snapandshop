@@ -53,3 +53,17 @@ Optional Worker proxy:
 cd worker
 npx wrangler deploy
 ```
+
+## GitHub Pages Deployment
+
+This repo can also deploy to GitHub Pages via Actions.
+
+1. Push to `main` (or run the `Deploy GitHub Pages` workflow manually).
+2. In your GitHub repo settings, set Pages source to `GitHub Actions`.
+3. Site URL will be:
+   `https://<your-username>.github.io/<repo-name>/`
+
+Notes:
+- The workflow file is `.github/workflows/github-pages.yml`.
+- It builds with `VITE_BASE_PATH=/<repo-name>/`, uploads `dist`, and publishes.
+- SPA fallback is enabled by copying `dist/index.html` to `dist/404.html`.
