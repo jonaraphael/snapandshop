@@ -59,6 +59,7 @@ describe("requestMagicModeParse", () => {
   });
 
   it("uses the default Worker path when no endpoint env var is configured", async () => {
+    vi.stubEnv("VITE_VISION_PROXY_URL", "");
     const fetchSpy = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(JSON.stringify(mockMagicResponse()), { status: 200 }));

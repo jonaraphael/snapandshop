@@ -221,6 +221,7 @@ interface AppState {
   setImageInput: (file: File, previewUrl: string) => void;
   clearImageInput: () => void;
   setMagicDebugOutput: (value: string | null) => void;
+  loadSharedList: (input: { listTitle: string | null; items: ShoppingItem[] }) => void;
   setPipeline: (patch: Partial<PipelineState>) => void;
   resetPipeline: () => void;
   resetForNewList: () => void;
@@ -290,6 +291,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setMagicDebugOutput: (value) => {
     set({ magicDebugOutput: value });
+  },
+  loadSharedList: ({ listTitle, items }) => {
+    const existingSession = get().session ?? makeSession();
+    const normalizedTitle = normalizeListTitle(listTitle);
+    const normalizedItems = items.map((item) => ({
+      ...item,
+      canonicalName: item.canonicalName.trim() || item.rawText.trim() || "Item",
+      rawText: item.rawText.trim() || item.canonicalName.trim() || "Item",
+      normalizedName: item.normalizedName.trim() || item.canonicalName.trim().toLowerCase() || "item"
+    }));
+    const updated = touchSession({
+      ...existingSession,
+      listTitle: normalizedTitle,
+      rawText: normalizedItems.map((item) => item.rawText).join("\n"),
+      ocrMeta: null,
+      ocrConfidence: 0,
+      usedMagicMode: false,
+      items: normalizedItems
+    });
+    set({
+      session: updated,
+      magicDebugOutput: null,
+      imageFile: null,
+      imagePreviewUrl: null,
+      pipeline: initialPipeline
+    });
+    writeSession(updated);
   },
   setPipeline: (patch) => {
     set((state) => ({

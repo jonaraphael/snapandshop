@@ -54,6 +54,7 @@ See `docs/SnapAndShop_Product_Spec.md`.
 - `Checklist`: grouped in aisle flow, with quick checkoff while shopping.
 - `Show Picture`: pull up the original list image any time to verify AI extraction.
 - `Edit`: fast corrections before or during checkout.
+- `Share by URL`: copy the address bar on `/list` and open it on another device to load the exact same checklist.
 
 ## Architecture Notes
 
