@@ -75,6 +75,9 @@ const UrlShareSync = (): null => {
     if (!hydrationComplete) {
       return;
     }
+    if (location.pathname !== ROUTES.list) {
+      return;
+    }
 
     const params = new URLSearchParams(location.search);
     const currentToken = params.get(SHARE_QUERY_PARAM);
