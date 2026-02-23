@@ -2,7 +2,7 @@ import type { MagicModeResponse, PipelineState, ShoppingItem } from "../../app/t
 import { categorizeItemName } from "../categorize/categorize";
 import { createId } from "../id";
 import { parseQuantityAndNotes } from "../parse/parseQuantity";
-import { recordMagicCallUsage } from "./apiKeyPolicy";
+import { isLikelyOpenAiApiKey, recordMagicCallUsage } from "./apiKeyPolicy";
 import {
   MAJOR_SECTION_LABELS,
   MAJOR_SECTION_PROMPT_SCAFFOLD,
@@ -422,6 +422,9 @@ export const requestMagicModeParse = async (input: {
   if (!apiKey) {
     throw new Error("OpenAI API key is required to process photos.");
   }
+  if (!isLikelyOpenAiApiKey(apiKey)) {
+    throw new Error("That API key looks invalid. Please paste a real OpenAI key that starts with sk-.");
+  }
   recordMagicCallUsage(apiKey);
 
   const imageBase64 = await blobToBase64(input.imageBlob);
@@ -467,6 +470,9 @@ export const requestMagicModeParse = async (input: {
 
   if (!response.ok) {
     const body = await response.text();
+    if (response.status === 401) {
+      throw new Error("OpenAI rejected the API key. Paste a valid key in this browser and try again.");
+    }
     throw new Error(`Magic Mode request failed: ${response.status} ${body}`);
   }
 
