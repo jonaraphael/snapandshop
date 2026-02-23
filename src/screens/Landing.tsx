@@ -4,7 +4,6 @@ import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { logDebug } from "../lib/debug/logger";
-import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 
 export const Landing = (): JSX.Element => {
   const navigate = useNavigate();
@@ -12,8 +11,6 @@ export const Landing = (): JSX.Element => {
   const recentLists = useAppStore((state) => state.recentLists);
   const loadRecentList = useAppStore((state) => state.loadRecentList);
   const ensureSession = useAppStore((state) => state.ensureSession);
-  const prefs = useAppStore((state) => state.prefs);
-  const setPrefs = useAppStore((state) => state.setPrefs);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
@@ -53,37 +50,10 @@ export const Landing = (): JSX.Element => {
     logDebug("picker_open_requested", { source });
   };
 
-  const ensureApiKeyForImageParse = (): boolean => {
-    try {
-      const resolved = resolveApiKeyForMagicCall({
-        currentKey: prefs.byoOpenAiKey,
-        onPersistUserKey: (key) =>
-          setPrefs({
-            byoOpenAiKey: key,
-            magicModeDefault: true
-          })
-      });
-
-      logDebug("byo_key_ready", {
-        length: resolved.length
-      });
-      return true;
-    } catch (error) {
-      logDebug("byo_key_prompt_cancelled", {
-        message: error instanceof Error ? error.message : String(error)
-      });
-      return false;
-    }
-  };
-
   const onSelectFile = async (file: File | null, source: "camera" | "gallery"): Promise<void> => {
     clearPickerTimer();
     if (!file) {
       logDebug("file_selected_empty", { source });
-      return;
-    }
-
-    if (!ensureApiKeyForImageParse()) {
       return;
     }
 

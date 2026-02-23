@@ -16,7 +16,6 @@ const PREFS_KEY = "cl:prefs";
 const SESSION_KEY = "cl:lastSession";
 const RECENT_LISTS_KEY = "cl:recentLists";
 const MAX_RECENT_LISTS = 12;
-const defaultByoOpenAiKey = import.meta.env.VITE_OPENAI_API_KEY?.trim() || null;
 
 const defaultPrefs = (): UiPrefs => ({
   fontScale: 1,
@@ -25,8 +24,7 @@ const defaultPrefs = (): UiPrefs => ({
       ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
       : false,
   highContrast: false,
-  magicModeDefault: true,
-  byoOpenAiKey: defaultByoOpenAiKey
+  magicModeDefault: true
 });
 
 const initialPipeline: PipelineState = {
@@ -78,10 +76,6 @@ const readPrefs = (): UiPrefs => {
     ...defaultPrefs(),
     ...stored,
     fontScale: clampFontScale(stored.fontScale ?? 1),
-    byoOpenAiKey:
-      typeof stored.byoOpenAiKey === "string" && stored.byoOpenAiKey.trim()
-        ? stored.byoOpenAiKey
-        : defaultByoOpenAiKey,
     // Force frontier-first extraction as the default behavior.
     magicModeDefault: true
   };

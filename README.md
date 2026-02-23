@@ -10,7 +10,7 @@ Website: `snapand.shop`
 - Zustand state store
 - Web Worker OCR (Tesseract.js)
 - Deterministic parse/categorize/order pipeline
-- Optional OpenAI Magic Mode (BYO key or Worker proxy)
+- OpenAI Magic Mode via Worker proxy (server-side secret)
 - PWA support via `vite-plugin-pwa`
 
 ## Quick Start
@@ -18,6 +18,13 @@ Website: `snapand.shop`
 ```bash
 npm install
 npm run dev
+```
+
+For Magic Mode in local dev, point the frontend at your Worker:
+
+```bash
+# .env.local
+VITE_VISION_PROXY_URL=https://<your-worker-domain>/api/vision-parse
 ```
 
 ## Scripts
@@ -52,7 +59,7 @@ See `docs/SnapAndShop_Product_Spec.md`.
 
 - Default mode is static-only deployment: all OCR/parsing runs client-side.
 - Session and preferences persist to localStorage (`cl:lastSession`, `cl:prefs`).
-- Optional proxy endpoint exists in `worker/src/index.ts` for secure server-side OpenAI key handling.
+- Magic Mode requests go through `worker/src/index.ts`; the browser never uses an OpenAI API key directly.
 
 ## Cloudflare Deployment
 
@@ -63,10 +70,11 @@ npm run build
 npx wrangler pages deploy dist --project-name=snapand-shop
 ```
 
-Optional Worker proxy:
+Worker proxy (required for Magic Mode):
 
 ```bash
 cd worker
+npx wrangler secret put OPENAI_API_KEY
 npx wrangler deploy
 ```
 
@@ -85,4 +93,5 @@ Notes:
   - `/<repo-name>/` for project pages
   - `/` for `<owner>.github.io` repos or when `CNAME` exists
   - optional override via repo variable `PAGES_BASE_PATH`
+- Set optional repo variable `VISION_PROXY_URL` to your Worker endpoint (for example `https://<worker-domain>/api/vision-parse`).
 - SPA fallback is enabled by copying `dist/index.html` to `dist/404.html`.

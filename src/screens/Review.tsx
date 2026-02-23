@@ -7,7 +7,6 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { categorizeItemName } from "../lib/categorize/categorize";
 import { buildOrderedItems } from "../lib/order/itemOrder";
 import { SECTION_LABELS, SECTION_ORDER } from "../lib/order/sectionOrder";
-import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 import {
   finalizeListTitleForItems,
   getMagicModePipelinePatch,
@@ -24,8 +23,6 @@ export const Review = (): JSX.Element => {
   const removeItem = useAppStore((state) => state.removeItem);
   const addItem = useAppStore((state) => state.addItem);
   const imageFile = useAppStore((state) => state.imageFile);
-  const prefs = useAppStore((state) => state.prefs);
-  const setPrefs = useAppStore((state) => state.setPrefs);
   const setPipeline = useAppStore((state) => state.setPipeline);
   const setMagicDebugOutput = useAppStore((state) => state.setMagicDebugOutput);
   const setExtractionResult = useAppStore((state) => state.setExtractionResult);
@@ -58,18 +55,8 @@ export const Review = (): JSX.Element => {
     setPipeline({ ...getMagicModePipelinePatch(), error: null });
 
     try {
-      const apiKey = resolveApiKeyForMagicCall({
-        currentKey: prefs.byoOpenAiKey,
-        onPersistUserKey: (key) =>
-          setPrefs({
-            byoOpenAiKey: key,
-            magicModeDefault: true
-          })
-      });
-
       const result = await requestMagicModeParse({
         imageBlob: imageFile,
-        byoOpenAiKey: apiKey,
         model: import.meta.env.VITE_OPENAI_MODEL
       });
       setMagicDebugOutput(result.debug_raw_output ?? null);
@@ -129,9 +116,6 @@ export const Review = (): JSX.Element => {
           <button type="button" className="ghost-btn" onClick={() => void onRunMagicMode()} disabled={magicLoading}>
             {magicLoading ? "Running…" : "Re-run (Magic Mode)"}
           </button>
-          {prefs.byoOpenAiKey ? null : (
-            <p className="hint-text">If proxy mode is configured, your image is sent securely for AI parsing.</p>
-          )}
           {magicError ? <p className="error-text">{magicError}</p> : null}
           {magicWarnings.length ? <p className="hint-text">{magicWarnings.join(" ")}</p> : null}
         </section>

@@ -100,7 +100,6 @@ export interface UiPrefs {
   reduceMotion: boolean;
   highContrast: boolean;
   magicModeDefault: boolean;
-  byoOpenAiKey: string | null;
 }
 
 export type PipelineStatus =

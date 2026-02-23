@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
 import { logDebug } from "../lib/debug/logger";
-import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 import {
   finalizeListTitleForItems,
   mapMagicModeItems,
@@ -59,8 +58,6 @@ const pickRandomMessageIndex = (currentIndex: number): number => {
 export const Processing = (): JSX.Element => {
   const navigate = useNavigate();
   const imageFile = useAppStore((state) => state.imageFile);
-  const prefs = useAppStore((state) => state.prefs);
-  const setPrefs = useAppStore((state) => state.setPrefs);
   const setPipeline = useAppStore((state) => state.setPipeline);
   const setMagicDebugOutput = useAppStore((state) => state.setMagicDebugOutput);
   const setExtractionResult = useAppStore((state) => state.setExtractionResult);
@@ -74,8 +71,7 @@ export const Processing = (): JSX.Element => {
       hasImageFile: Boolean(imageFile),
       imageName: imageFile?.name ?? null,
       imageType: imageFile?.type ?? null,
-      imageSize: imageFile?.size ?? null,
-      hasByoOpenAiKey: Boolean(prefs.byoOpenAiKey)
+      imageSize: imageFile?.size ?? null
     });
 
     if (!imageFile) {
@@ -87,15 +83,6 @@ export const Processing = (): JSX.Element => {
 
     const run = async (): Promise<void> => {
       try {
-        const apiKey = resolveApiKeyForMagicCall({
-          currentKey: prefs.byoOpenAiKey,
-          onPersistUserKey: (key) =>
-            setPrefs({
-              byoOpenAiKey: key,
-              magicModeDefault: true
-            })
-        });
-
         controllerRef.current = new AbortController();
         setPipeline({
           status: "ocr",
@@ -105,12 +92,11 @@ export const Processing = (): JSX.Element => {
         });
 
         logDebug("processing_frontier_start", {
-          hasByoOpenAiKey: true
+          usingVisionProxy: true
         });
 
         const frontier = await requestMagicModeParse({
           imageBlob: imageFile,
-          byoOpenAiKey: apiKey,
           model: import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5.2",
           signal: controllerRef.current.signal
         });
@@ -173,7 +159,7 @@ export const Processing = (): JSX.Element => {
       controllerRef.current?.abort();
       logDebug("processing_effect_cleanup");
     };
-  }, [imageFile, navigate, prefs.byoOpenAiKey, replaceItems, setExtractionResult, setMagicDebugOutput, setPipeline, setPrefs]);
+  }, [imageFile, navigate, replaceItems, setExtractionResult, setMagicDebugOutput, setPipeline]);
 
   const pipeline = useAppStore((state) => state.pipeline);
   const isLoading = !pipeline.error && pipeline.status !== "review_ready" && pipeline.status !== "error";

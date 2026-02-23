@@ -347,8 +347,7 @@ const basePrefs = {
   fontScale: 1,
   reduceMotion: false,
   highContrast: false,
-  magicModeDefault: true,
-  byoOpenAiKey: "sk-demo-marketing-local-only"
+  magicModeDefault: true
 };
 
 const baseStoragePayload = {

@@ -8,7 +8,6 @@ import { BottomSheet } from "../components/BottomSheet";
 import { TextSizeControl } from "../components/TextSizeControl";
 import { buildOrderedItems } from "../lib/order/itemOrder";
 import { buildSections } from "../lib/order/sectionOrder";
-import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 import {
   finalizeListTitleForItems,
   mapMagicModeItems,
@@ -204,8 +203,6 @@ export const List = (): JSX.Element => {
   const imagePreviewUrl = useAppStore((state) => state.imagePreviewUrl);
   const recentLists = useAppStore((state) => state.recentLists);
   const magicDebugOutput = useAppStore((state) => state.magicDebugOutput);
-  const prefs = useAppStore((state) => state.prefs);
-  const setPrefs = useAppStore((state) => state.setPrefs);
   const setMagicDebugOutput = useAppStore((state) => state.setMagicDebugOutput);
   const toggleItem = useAppStore((state) => state.toggleItem);
   const addSuggestedItems = useAppStore((state) => state.addSuggestedItems);
@@ -438,18 +435,8 @@ export const List = (): JSX.Element => {
       addPhotoAbortRef.current = controller;
 
       try {
-        const apiKey = resolveApiKeyForMagicCall({
-          currentKey: prefs.byoOpenAiKey,
-          onPersistUserKey: (key) =>
-            setPrefs({
-              byoOpenAiKey: key,
-              magicModeDefault: true
-            })
-        });
-
         const parsed = await requestMagicModeParse({
           imageBlob: file,
-          byoOpenAiKey: apiKey,
           model: import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5.2",
           signal: controller.signal
         });
@@ -480,7 +467,7 @@ export const List = (): JSX.Element => {
         setIsAddingPhoto(false);
       }
     },
-    [isAddingPhoto, prefs.byoOpenAiKey, replaceItems, setMagicDebugOutput, setPrefs]
+    [isAddingPhoto, replaceItems, setMagicDebugOutput]
   );
 
   const onAddPhotoInputChange = (event: ChangeEvent<HTMLInputElement>): void => {

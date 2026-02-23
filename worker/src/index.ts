@@ -458,9 +458,9 @@ export default {
       return withCors(new Response("OPENAI_API_KEY missing", { status: 500 }));
     }
 
-    let payload: { imageBase64: string; mimeType: string };
+    let payload: { imageBase64: string; mimeType: string; model?: string };
     try {
-      payload = (await request.json()) as { imageBase64: string; mimeType: string };
+      payload = (await request.json()) as { imageBase64: string; mimeType: string; model?: string };
     } catch {
       return withCors(new Response("Invalid JSON body", { status: 400 }));
     }
@@ -469,7 +469,8 @@ export default {
       return withCors(new Response("Missing imageBase64", { status: 400 }));
     }
 
-    const model = env.OPENAI_MODEL || "gpt-5.2";
+    const requestedModel = typeof payload.model === "string" ? payload.model.trim() : "";
+    const model = requestedModel || env.OPENAI_MODEL || "gpt-5.2";
 
     const openAiResp = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
