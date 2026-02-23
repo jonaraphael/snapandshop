@@ -1,19 +1,31 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
 import { logDebug } from "../lib/debug/logger";
+import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 import { mapMagicModeItems, requestMagicModeParse } from "../lib/ocr/magicMode";
 import { buildOrderedItems } from "../lib/order/itemOrder";
+
+const FUNNY_LOADING_MESSAGES = [
+  "Negotiating with cursive...",
+  "Decoding chaotic penmanship...",
+  "Consulting the grocery aisle oracle...",
+  "Turning scribbles into a battle plan...",
+  "Asking produce where everything lives..."
+];
 
 export const Processing = (): JSX.Element => {
   const navigate = useNavigate();
   const imageFile = useAppStore((state) => state.imageFile);
   const prefs = useAppStore((state) => state.prefs);
+  const setPrefs = useAppStore((state) => state.setPrefs);
   const setPipeline = useAppStore((state) => state.setPipeline);
   const setExtractionResult = useAppStore((state) => state.setExtractionResult);
   const replaceItems = useAppStore((state) => state.replaceItems);
   const controllerRef = useRef<AbortController | null>(null);
+  const [funnyIndex, setFunnyIndex] = useState(0);
+  const [displayProgress, setDisplayProgress] = useState(0);
 
   useEffect(() => {
     logDebug("processing_effect_start", {
@@ -29,20 +41,19 @@ export const Processing = (): JSX.Element => {
       navigate(ROUTES.landing, { replace: true });
       return;
     }
-    if (!prefs.byoOpenAiKey?.trim()) {
-      setPipeline({
-        status: "error",
-        progress: 0,
-        label: "API key required",
-        error: "OpenAI API key is required to process photos."
-      });
-      return;
-    }
-
     let cancelled = false;
 
     const run = async (): Promise<void> => {
       try {
+        const apiKey = resolveApiKeyForMagicCall({
+          currentKey: prefs.byoOpenAiKey,
+          onPersistUserKey: (key) =>
+            setPrefs({
+              byoOpenAiKey: key,
+              magicModeDefault: true
+            })
+        });
+
         controllerRef.current = new AbortController();
         setPipeline({
           status: "ocr",
@@ -57,7 +68,7 @@ export const Processing = (): JSX.Element => {
 
         const frontier = await requestMagicModeParse({
           imageBlob: imageFile,
-          byoOpenAiKey: prefs.byoOpenAiKey,
+          byoOpenAiKey: apiKey,
           model: import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5.2",
           signal: controllerRef.current.signal
         });
@@ -115,22 +126,62 @@ export const Processing = (): JSX.Element => {
       controllerRef.current?.abort();
       logDebug("processing_effect_cleanup");
     };
-  }, [imageFile, navigate, prefs.byoOpenAiKey, replaceItems, setExtractionResult, setPipeline]);
+  }, [imageFile, navigate, prefs.byoOpenAiKey, replaceItems, setExtractionResult, setPipeline, setPrefs]);
 
   const pipeline = useAppStore((state) => state.pipeline);
+  const isLoading = !pipeline.error && pipeline.status !== "review_ready" && pipeline.status !== "error";
+
+  useEffect(() => {
+    setDisplayProgress((current) => Math.max(current, pipeline.progress));
+  }, [pipeline.progress]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setDisplayProgress(pipeline.progress);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setDisplayProgress((current) => {
+        const base = Math.max(current, pipeline.progress, 0.14);
+        const next = base + (0.92 - base) * 0.06;
+        return Math.min(0.92, next);
+      });
+    }, 170);
+
+    return () => window.clearInterval(timer);
+  }, [isLoading, pipeline.progress]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setFunnyIndex(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setFunnyIndex((index) => (index + 1) % FUNNY_LOADING_MESSAGES.length);
+    }, 2100);
+
+    return () => window.clearInterval(timer);
+  }, [isLoading]);
+
+  const progress = isLoading ? Math.max(displayProgress, pipeline.progress) : pipeline.progress;
+  const progressPercent = Math.round(Math.min(100, Math.max(0, progress * 100)));
+  const progressWidth = `${Math.max(progressPercent, isLoading ? 18 : 0)}%`;
 
   return (
     <main className="screen processing-screen">
       <h1 className="screen-title">Reading your list…</h1>
       <p className="processing-label">{pipeline.label}</p>
+      {isLoading ? <p className="processing-funny">{FUNNY_LOADING_MESSAGES[funnyIndex]}</p> : null}
       <div
         className="progress-track"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
-        aria-valuenow={Math.round(pipeline.progress * 100)}
+        aria-valuenow={progressPercent}
       >
-        <div className="progress-value" style={{ width: `${pipeline.progress * 100}%` }} />
+        <div className={`progress-value ${isLoading ? "loading" : ""}`} style={{ width: progressWidth }} />
       </div>
       {pipeline.error ? <p className="error-text">{pipeline.error}</p> : null}
       {pipeline.error ? (

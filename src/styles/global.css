@@ -229,6 +229,17 @@ input {
   gap: 0.3rem;
 }
 
+.top-left-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.top-left-actions .link-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .top-bar-side.align-right {
   text-align: right;
   justify-content: flex-end;
@@ -288,6 +299,12 @@ input {
   color: var(--muted);
 }
 
+.processing-funny {
+  margin-top: -0.2rem;
+  color: #6d7868;
+  font-size: 0.92rem;
+}
+
 .progress-track {
   width: 100%;
   border-radius: 999px;
@@ -300,6 +317,19 @@ input {
   height: 100%;
   background: linear-gradient(90deg, #557736 0%, #86ab4f 100%);
   transition: width 160ms linear;
+}
+
+.progress-value.loading {
+  background: linear-gradient(
+    90deg,
+    #557736 0%,
+    #6e9540 28%,
+    #9fc86a 50%,
+    #6e9540 72%,
+    #557736 100%
+  );
+  background-size: 220% 100%;
+  animation: progress-shimmer 1.05s linear infinite;
 }
 
 .error-text {
@@ -471,6 +501,30 @@ input {
   letter-spacing: -0.02em;
 }
 
+.inline-add-progress {
+  margin-top: 0.35rem;
+  width: min(100%, 360px);
+  height: 8px;
+  border-radius: 999px;
+  background: #d8ceb8;
+  overflow: hidden;
+}
+
+.inline-add-progress-fill {
+  display: block;
+  height: 100%;
+  width: 44%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #557736 0%, #89b551 100%);
+  animation: add-progress-slide 1s ease-in-out infinite;
+}
+
+.shake-undo-hint {
+  margin-top: 0.2rem;
+  color: #7a8475;
+  font-size: 0.82rem;
+}
+
 .source-image-wrap {
   margin-top: 0.8rem;
   border: 1px solid #cabda2;
@@ -538,6 +592,36 @@ input {
   gap: 0.35rem;
 }
 
+.check-row-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.check-row-shell.swipe-enabled {
+  touch-action: pan-y;
+}
+
+.check-row-shell.removing {
+  pointer-events: none;
+}
+
+.check-row-delete-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #c9342e 0%, #a91f1a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 0.75rem;
+  color: #fff;
+}
+
+.check-row-trash {
+  font-size: 1.05rem;
+  opacity: 0.95;
+}
+
 .check-row {
   min-height: 44px;
   display: flex;
@@ -546,6 +630,13 @@ input {
   gap: 0.5rem;
   padding: 0.45rem 0.4rem;
   border-radius: 10px;
+  background: rgba(255, 253, 249, 0.98);
+  transition: transform 170ms ease;
+  will-change: transform;
+}
+
+.check-row.dragging {
+  transition: none;
 }
 
 .check-main {
@@ -589,7 +680,8 @@ input {
 }
 
 .check-notes {
-  color: #586452;
+  color: #8b9187;
+  font-size: 0.93em;
 }
 
 .sheet-overlay {
@@ -663,5 +755,23 @@ input {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+@keyframes progress-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -20% 0;
+  }
+}
+
+@keyframes add-progress-slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(260%);
   }
 }

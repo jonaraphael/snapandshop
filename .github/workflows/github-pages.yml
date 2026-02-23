@@ -59,6 +59,7 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: ${{ steps.base.outputs.base_path }}
+          VITE_OPENAI_API_KEY: ${{ secrets.VITE_OPENAI_API_KEY }}
 
       - name: SPA fallback and no-jekyll
         run: |

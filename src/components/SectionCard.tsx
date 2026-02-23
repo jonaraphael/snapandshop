@@ -8,6 +8,7 @@ interface SectionCardProps {
   section: Section;
   onToggleItem: (itemId: string) => void;
   onDismissSuggestedItem?: (itemId: string) => void;
+  onRemoveItem?: (itemId: string) => void;
   suggestionCount?: number;
   onSuggestMore?: () => void;
 }
@@ -16,6 +17,7 @@ export const SectionCard = ({
   section,
   onToggleItem,
   onDismissSuggestedItem,
+  onRemoveItem,
   suggestionCount = 0,
   onSuggestMore
 }: SectionCardProps): JSX.Element => {
@@ -67,6 +69,7 @@ export const SectionCard = ({
             item={item}
             onToggle={onToggleItem}
             onDismissSuggested={onDismissSuggestedItem}
+            onRemove={onRemoveItem}
           />
         ))}
       </div>

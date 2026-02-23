@@ -30,7 +30,7 @@ export const SECTION_LABELS: Record<CategoryId, string> = {
   household: "Household",
   personal_care: "Personal Care",
   pet: "Pet",
-  other: "Other"
+  other: "Misc."
 };
 
 const categoryRank = SECTION_ORDER.reduce<Record<CategoryId, number>>((acc, categoryId, index) => {

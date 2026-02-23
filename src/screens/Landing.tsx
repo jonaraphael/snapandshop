@@ -4,6 +4,7 @@ import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { logDebug } from "../lib/debug/logger";
+import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 
 export const Landing = (): JSX.Element => {
   const navigate = useNavigate();
@@ -53,34 +54,26 @@ export const Landing = (): JSX.Element => {
   };
 
   const ensureApiKeyForImageParse = (): boolean => {
-    const existingKey = prefs.byoOpenAiKey?.trim() ?? "";
-    if (existingKey) {
+    try {
+      const resolved = resolveApiKeyForMagicCall({
+        currentKey: prefs.byoOpenAiKey,
+        onPersistUserKey: (key) =>
+          setPrefs({
+            byoOpenAiKey: key,
+            magicModeDefault: true
+          })
+      });
+
+      logDebug("byo_key_ready", {
+        length: resolved.length
+      });
       return true;
-    }
-
-    const prompted = window.prompt(
-      "Paste your OpenAI API key (sk-...). It is saved only in this browser, never uploaded by us, and not used for any purpose other than reading this image."
-    );
-
-    if (prompted === null) {
-      logDebug("byo_key_prompt_cancelled");
+    } catch (error) {
+      logDebug("byo_key_prompt_cancelled", {
+        message: error instanceof Error ? error.message : String(error)
+      });
       return false;
     }
-
-    const trimmed = prompted.trim();
-    if (!trimmed) {
-      logDebug("byo_key_prompt_empty");
-      return false;
-    }
-
-    setPrefs({
-      byoOpenAiKey: trimmed,
-      magicModeDefault: true
-    });
-    logDebug("byo_key_prompt_saved", {
-      length: trimmed.length
-    });
-    return true;
   };
 
   const onSelectFile = async (file: File | null, source: "camera" | "gallery"): Promise<void> => {
@@ -226,7 +219,7 @@ export const Landing = (): JSX.Element => {
     >
       <section className={`hero-card${dragActive ? " drag-active" : ""}`}>
         <h1 className="hero-title">ChoppingList</h1>
-        <p className="hero-subtitle">Snap your list. Shop faster.</p>
+        <p className="hero-subtitle">Take a picture of a recipe or your handwritten shopping list, and get a sorted grocery list instantly.</p>
         <div className="cta-stack">
           <PrimaryButton
             label={

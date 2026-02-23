@@ -7,6 +7,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { categorizeItemName } from "../lib/categorize/categorize";
 import { buildOrderedItems } from "../lib/order/itemOrder";
 import { SECTION_LABELS, SECTION_ORDER } from "../lib/order/sectionOrder";
+import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 import {
   getMagicModePipelinePatch,
   mapMagicModeItems,
@@ -23,6 +24,7 @@ export const Review = (): JSX.Element => {
   const addItem = useAppStore((state) => state.addItem);
   const imageFile = useAppStore((state) => state.imageFile);
   const prefs = useAppStore((state) => state.prefs);
+  const setPrefs = useAppStore((state) => state.setPrefs);
   const setPipeline = useAppStore((state) => state.setPipeline);
   const setExtractionResult = useAppStore((state) => state.setExtractionResult);
   const [newItem, setNewItem] = useState("");
@@ -54,9 +56,18 @@ export const Review = (): JSX.Element => {
     setPipeline({ ...getMagicModePipelinePatch(), error: null });
 
     try {
+      const apiKey = resolveApiKeyForMagicCall({
+        currentKey: prefs.byoOpenAiKey,
+        onPersistUserKey: (key) =>
+          setPrefs({
+            byoOpenAiKey: key,
+            magicModeDefault: true
+          })
+      });
+
       const result = await requestMagicModeParse({
         imageBlob: imageFile,
-        byoOpenAiKey: prefs.byoOpenAiKey,
+        byoOpenAiKey: apiKey,
         model: import.meta.env.VITE_OPENAI_MODEL
       });
       const mapped = mapMagicModeItems(result.items);
