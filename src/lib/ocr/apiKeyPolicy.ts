@@ -83,19 +83,18 @@ const writeSharedUsage = (usage: SharedKeyUsage): void => {
 export const resolveApiKeyForMagicCall = (input: {
   currentKey: string | null;
   onPersistUserKey?: (key: string) => void;
-  onClearInvalidUserKey?: () => void;
 }): string => {
   const shared = serviceKey();
   const existingKey = normalizeKey(input.currentKey);
   let activeKey = isLikelyOpenAiApiKey(existingKey) ? existingKey : null;
-  const hasInvalidSavedKey = Boolean(existingKey && !isLikelyOpenAiApiKey(existingKey));
-  if (hasInvalidSavedKey) {
-    input.onClearInvalidUserKey?.();
-  }
 
   if (!activeKey) {
+    const promptPrefix =
+      existingKey && !isLikelyOpenAiApiKey(existingKey)
+        ? "The saved API key looks invalid. "
+        : "";
     const pasted = window.prompt(
-      "Paste your OpenAI API key (sk-...). It is saved only in this browser, never uploaded by us, and only used to read your list image."
+      `${promptPrefix}Paste your OpenAI API key (sk-...). It is saved only in this browser, never uploaded by us, and only used to read your list image.`
     );
     const trimmed = normalizeKey(pasted);
     if (!trimmed) {

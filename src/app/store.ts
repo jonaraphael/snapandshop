@@ -11,14 +11,12 @@ import type {
 import { logDebug } from "../lib/debug/logger";
 import { createId } from "../lib/id";
 import { buildOrderedItems } from "../lib/order/itemOrder";
-import { isLikelyOpenAiApiKey } from "../lib/ocr/apiKeyPolicy";
 
 const PREFS_KEY = "cl:prefs";
 const SESSION_KEY = "cl:lastSession";
 const RECENT_LISTS_KEY = "cl:recentLists";
 const MAX_RECENT_LISTS = 12;
-const envDefaultKey = import.meta.env.VITE_OPENAI_API_KEY?.trim() || null;
-const defaultByoOpenAiKey = isLikelyOpenAiApiKey(envDefaultKey) ? envDefaultKey : null;
+const defaultByoOpenAiKey = import.meta.env.VITE_OPENAI_API_KEY?.trim() || null;
 
 const defaultPrefs = (): UiPrefs => ({
   fontScale: 1,
@@ -80,15 +78,10 @@ const readPrefs = (): UiPrefs => {
     ...defaultPrefs(),
     ...stored,
     fontScale: clampFontScale(stored.fontScale ?? 1),
-    byoOpenAiKey: (() => {
-      if (typeof stored.byoOpenAiKey === "string") {
-        const trimmed = stored.byoOpenAiKey.trim();
-        if (isLikelyOpenAiApiKey(trimmed)) {
-          return trimmed;
-        }
-      }
-      return defaultByoOpenAiKey;
-    })(),
+    byoOpenAiKey:
+      typeof stored.byoOpenAiKey === "string" && stored.byoOpenAiKey.trim()
+        ? stored.byoOpenAiKey
+        : defaultByoOpenAiKey,
     // Force frontier-first extraction as the default behavior.
     magicModeDefault: true
   };
