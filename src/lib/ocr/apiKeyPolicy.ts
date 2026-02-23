@@ -86,7 +86,13 @@ export const resolveApiKeyForMagicCall = (input: {
 }): string => {
   const shared = serviceKey();
   const existingKey = normalizeKey(input.currentKey);
-  let activeKey = isLikelyOpenAiApiKey(existingKey) ? existingKey : null;
+  const hasValidExistingKey = isLikelyOpenAiApiKey(existingKey);
+  let activeKey = hasValidExistingKey ? existingKey : shared;
+
+  if (!hasValidExistingKey && existingKey && shared) {
+    // Repair stale invalid local keys by restoring the configured shared key.
+    input.onPersistUserKey?.(shared);
+  }
 
   if (!activeKey) {
     const promptPrefix =
