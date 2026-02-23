@@ -64,6 +64,10 @@ export const Review = (): JSX.Element => {
           setPrefs({
             byoOpenAiKey: key,
             magicModeDefault: true
+          }),
+        onClearInvalidUserKey: () =>
+          setPrefs({
+            byoOpenAiKey: null
           })
       });
 

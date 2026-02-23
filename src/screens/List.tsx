@@ -444,6 +444,10 @@ export const List = (): JSX.Element => {
             setPrefs({
               byoOpenAiKey: key,
               magicModeDefault: true
+            }),
+          onClearInvalidUserKey: () =>
+            setPrefs({
+              byoOpenAiKey: null
             })
         });
 
