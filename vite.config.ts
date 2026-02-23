@@ -21,7 +21,13 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true
       },
-      includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
+      includeAssets: [
+        "icons/icon-192.png",
+        "icons/icon-512.png",
+        "icons/apple-touch-icon.png",
+        "icons/favicon-32x32.png",
+        "icons/favicon-16x16.png"
+      ],
       manifest: {
         name: "Snap&Shop",
         short_name: "Snap&Shop",
