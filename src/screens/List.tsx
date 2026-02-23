@@ -9,7 +9,11 @@ import { TextSizeControl } from "../components/TextSizeControl";
 import { buildOrderedItems } from "../lib/order/itemOrder";
 import { buildSections } from "../lib/order/sectionOrder";
 import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
-import { mapMagicModeItems, requestMagicModeParse } from "../lib/ocr/magicMode";
+import {
+  finalizeListTitleForItems,
+  mapMagicModeItems,
+  requestMagicModeParse
+} from "../lib/ocr/magicMode";
 import type { RecentListItem, ShoppingItem } from "../app/types";
 
 const SHAKE_DELTA_THRESHOLD = 13;
@@ -37,6 +41,92 @@ const mergeNotes = (left: string | null, right: string | null): string | null =>
     return left;
   }
   return Array.from(new Set([left, right])).join("; ");
+};
+
+const normalizeDebugName = (value: string): string => {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+};
+
+interface ModelDebugComparison {
+  modelItemCount: number;
+  checklistItemCount: number;
+  missingInChecklist: string[];
+  parseError: string | null;
+}
+
+const shouldShowModelDebugPanel = (): boolean => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
+  const { hostname } = window.location;
+  const lowerHost = hostname.toLowerCase();
+  if (
+    lowerHost === "localhost" ||
+    lowerHost === "127.0.0.1" ||
+    lowerHost === "0.0.0.0" ||
+    lowerHost === "::1" ||
+    lowerHost === "[::1]"
+  ) {
+    return true;
+  }
+  if (lowerHost.endsWith(".localhost") || lowerHost.endsWith(".local")) {
+    return true;
+  }
+
+  const isPrivateIpv4 =
+    /^10\./.test(lowerHost) ||
+    /^192\.168\./.test(lowerHost) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(lowerHost);
+  if (isPrivateIpv4) {
+    return true;
+  }
+
+  return false;
+};
+
+const buildModelDebugComparison = (
+  rawOutput: string | null,
+  checklistItems: ShoppingItem[]
+): ModelDebugComparison | null => {
+  if (!rawOutput) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(rawOutput) as {
+      items?: Array<{ canonical_name?: string | null; raw_text?: string | null }>;
+    };
+    const modelItems = Array.isArray(parsed.items) ? parsed.items : [];
+    const modelNames = modelItems
+      .map((item) => item.canonical_name ?? item.raw_text ?? "")
+      .map((name) => name.trim())
+      .filter(Boolean);
+
+    const checklistNames = new Set(checklistItems.map((item) => normalizeDebugName(item.canonicalName)));
+    const missingInChecklist = Array.from(
+      new Set(
+        modelNames.filter((name) => !checklistNames.has(normalizeDebugName(name)))
+      )
+    );
+
+    return {
+      modelItemCount: modelItems.length,
+      checklistItemCount: checklistItems.length,
+      missingInChecklist,
+      parseError: null
+    };
+  } catch (error) {
+    return {
+      modelItemCount: 0,
+      checklistItemCount: checklistItems.length,
+      missingInChecklist: [],
+      parseError: error instanceof Error ? error.message : "Could not parse model debug output."
+    };
+  }
 };
 
 const collateItems = (existingItems: ShoppingItem[], incomingItems: ShoppingItem[]): ShoppingItem[] => {
@@ -113,8 +203,10 @@ export const List = (): JSX.Element => {
   const session = useAppStore((state) => state.session);
   const imagePreviewUrl = useAppStore((state) => state.imagePreviewUrl);
   const recentLists = useAppStore((state) => state.recentLists);
+  const magicDebugOutput = useAppStore((state) => state.magicDebugOutput);
   const prefs = useAppStore((state) => state.prefs);
   const setPrefs = useAppStore((state) => state.setPrefs);
+  const setMagicDebugOutput = useAppStore((state) => state.setMagicDebugOutput);
   const toggleItem = useAppStore((state) => state.toggleItem);
   const addSuggestedItems = useAppStore((state) => state.addSuggestedItems);
   const dismissSuggestedItem = useAppStore((state) => state.dismissSuggestedItem);
@@ -136,6 +228,11 @@ export const List = (): JSX.Element => {
   const activeListTitle = session?.listTitle?.trim() || "Shopping list";
 
   const sections = useMemo(() => buildSections(session?.items ?? []), [session?.items]);
+  const showModelDebugPanel = useMemo(() => shouldShowModelDebugPanel(), []);
+  const debugComparison = useMemo(
+    () => buildModelDebugComparison(magicDebugOutput, session?.items ?? []),
+    [magicDebugOutput, session?.items]
+  );
   const itemsLeft = useMemo(
     () => (session?.items ?? []).filter((item) => !item.checked).length,
     [session?.items]
@@ -356,6 +453,7 @@ export const List = (): JSX.Element => {
           model: import.meta.env.VITE_OPENAI_MODEL ?? "gpt-5.2",
           signal: controller.signal
         });
+        setMagicDebugOutput(parsed.debug_raw_output ?? null);
 
         const incoming = mapMagicModeItems(parsed.items);
         if (!incoming.length) {
@@ -365,7 +463,11 @@ export const List = (): JSX.Element => {
         const currentSession = useAppStore.getState().session;
         const existingItems = currentSession?.items ?? [];
         const merged = collateItems(existingItems, incoming);
-        replaceItems(merged, currentSession?.listTitle ?? parsed.list_title);
+        const resolvedListTitle = finalizeListTitleForItems(
+          currentSession?.listTitle ?? parsed.list_title,
+          merged.map((item) => item.canonicalName)
+        );
+        replaceItems(merged, resolvedListTitle);
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -378,7 +480,7 @@ export const List = (): JSX.Element => {
         setIsAddingPhoto(false);
       }
     },
-    [isAddingPhoto, prefs.byoOpenAiKey, replaceItems, setPrefs]
+    [isAddingPhoto, prefs.byoOpenAiKey, replaceItems, setMagicDebugOutput, setPrefs]
   );
 
   const onAddPhotoInputChange = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -472,6 +574,23 @@ export const List = (): JSX.Element => {
           />
         ))}
       </section>
+
+      {showModelDebugPanel ? (
+        <section className="model-debug-panel">
+          <h2 className="model-debug-title">Debug: model output</h2>
+          {debugComparison ? (
+            <p className="model-debug-meta">
+              Model items: {debugComparison.modelItemCount} | Checklist items: {debugComparison.checklistItemCount}
+              {debugComparison.parseError
+                ? ` | Parse error: ${debugComparison.parseError}`
+                : debugComparison.missingInChecklist.length
+                  ? ` | Missing after mapping: ${debugComparison.missingInChecklist.join(", ")}`
+                  : " | Missing after mapping: none"}
+            </p>
+          ) : null}
+          <pre className="model-debug-pre">{magicDebugOutput ?? "No model output captured yet."}</pre>
+        </section>
+      ) : null}
 
       <TextSizeControl open={showTextSize} onClose={() => setShowTextSize(false)} />
       <BottomSheet open={showImageSheet} title="Original List Photo" onClose={() => setShowImageSheet(false)}>

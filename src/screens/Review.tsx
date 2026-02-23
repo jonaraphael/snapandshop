@@ -9,6 +9,7 @@ import { buildOrderedItems } from "../lib/order/itemOrder";
 import { SECTION_LABELS, SECTION_ORDER } from "../lib/order/sectionOrder";
 import { resolveApiKeyForMagicCall } from "../lib/ocr/apiKeyPolicy";
 import {
+  finalizeListTitleForItems,
   getMagicModePipelinePatch,
   mapMagicModeItems,
   requestMagicModeParse,
@@ -26,6 +27,7 @@ export const Review = (): JSX.Element => {
   const prefs = useAppStore((state) => state.prefs);
   const setPrefs = useAppStore((state) => state.setPrefs);
   const setPipeline = useAppStore((state) => state.setPipeline);
+  const setMagicDebugOutput = useAppStore((state) => state.setMagicDebugOutput);
   const setExtractionResult = useAppStore((state) => state.setExtractionResult);
   const [newItem, setNewItem] = useState("");
   const [magicWarnings, setMagicWarnings] = useState<string[]>([]);
@@ -70,15 +72,21 @@ export const Review = (): JSX.Element => {
         byoOpenAiKey: apiKey,
         model: import.meta.env.VITE_OPENAI_MODEL
       });
+      setMagicDebugOutput(result.debug_raw_output ?? null);
       const mapped = mapMagicModeItems(result.items);
-      replaceItems(buildOrderedItems(mapped), result.list_title);
+      const ordered = buildOrderedItems(mapped);
+      const resolvedListTitle = finalizeListTitleForItems(
+        result.list_title,
+        ordered.map((item) => item.canonicalName)
+      );
+      replaceItems(ordered, resolvedListTitle);
       setExtractionResult({
         rawText: mapped.map((item) => item.rawText).join("\n"),
         ocrMeta: session?.ocrMeta ?? null,
         ocrConfidence: session?.ocrConfidence ?? 0.8,
         imageHash: session?.imageHash ?? null,
         thumbnailDataUrl: session?.thumbnailDataUrl ?? null,
-        listTitle: result.list_title,
+        listTitle: resolvedListTitle,
         usedMagicMode: true
       });
       setMagicWarnings(result.warnings ?? []);

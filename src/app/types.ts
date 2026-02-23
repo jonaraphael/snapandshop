@@ -131,6 +131,7 @@ export interface ParsedItem {
 
 export interface MagicModeResponse {
   list_title: string | null;
+  debug_raw_output?: string | null;
   items: Array<{
     raw_text: string;
     canonical_name: string;

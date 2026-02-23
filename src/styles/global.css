@@ -491,6 +491,41 @@ input {
   padding-bottom: 6rem;
 }
 
+.model-debug-panel {
+  margin-top: 0.75rem;
+  border: 1px solid #c8bca2;
+  border-radius: 14px;
+  background: #f8f3e8;
+  padding: 0.75rem;
+}
+
+.model-debug-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-family: "Fraunces", serif;
+}
+
+.model-debug-meta {
+  margin: 0.4rem 0 0;
+  color: #4b5a61;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.model-debug-pre {
+  margin: 0.55rem 0 0;
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid #d7ccb5;
+  background: #fffdf8;
+  padding: 0.65rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .list-title-block {
   margin-top: -0.1rem;
 }
@@ -615,11 +650,25 @@ input {
   justify-content: flex-end;
   padding-right: 0.75rem;
   color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+}
+
+.check-row-shell.gesture-active .check-row-delete-bg {
+  opacity: 1;
 }
 
 .check-row-trash {
   font-size: 1.05rem;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity 110ms ease, transform 110ms ease;
+}
+
+.check-row-shell.gesture-active .check-row-trash {
   opacity: 0.95;
+  transform: translateX(0);
 }
 
 .check-row {
@@ -659,7 +708,7 @@ input {
 }
 
 .check-row.suggested {
-  background: linear-gradient(90deg, rgba(95, 144, 191, 0.18) 0%, rgba(95, 144, 191, 0.04) 100%);
+  background: linear-gradient(90deg, #e4edf9 0%, #f2f7ff 100%);
 }
 
 .check-row.suggested .check-text {

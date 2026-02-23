@@ -218,6 +218,7 @@ interface AppState {
   prefs: UiPrefs;
   session: Session | null;
   recentLists: RecentList[];
+  magicDebugOutput: string | null;
   imageFile: File | null;
   imagePreviewUrl: string | null;
   pipeline: PipelineState;
@@ -225,6 +226,7 @@ interface AppState {
   ensureSession: () => Session;
   setImageInput: (file: File, previewUrl: string) => void;
   clearImageInput: () => void;
+  setMagicDebugOutput: (value: string | null) => void;
   setPipeline: (patch: Partial<PipelineState>) => void;
   resetPipeline: () => void;
   resetForNewList: () => void;
@@ -251,6 +253,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   prefs: readPrefs(),
   session: readSession(),
   recentLists: readRecentLists(),
+  magicDebugOutput: null,
   imageFile: null,
   imagePreviewUrl: null,
   pipeline: initialPipeline,
@@ -291,6 +294,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearImageInput: () => {
     set({ imageFile: null, imagePreviewUrl: null });
   },
+  setMagicDebugOutput: (value) => {
+    set({ magicDebugOutput: value });
+  },
   setPipeline: (patch) => {
     set((state) => ({
       pipeline: {
@@ -306,6 +312,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const session = makeSession();
     set({
       session,
+      magicDebugOutput: null,
       imageFile: null,
       imagePreviewUrl: null,
       pipeline: initialPipeline
@@ -385,7 +392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       items
     });
 
-    set({ session: updated });
+    set({ session: updated, magicDebugOutput: null });
     writeSession(updated);
     return true;
   },

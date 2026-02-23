@@ -2,6 +2,7 @@ import type { MagicModeResponse, PipelineState, ShoppingItem } from "../../app/t
 import { categorizeItemName } from "../categorize/categorize";
 import { createId } from "../id";
 import { parseQuantityAndNotes } from "../parse/parseQuantity";
+import { normalizeName } from "../parse/normalizeItem";
 import { isLikelyOpenAiApiKey, recordMagicCallUsage } from "./apiKeyPolicy";
 import {
   MAJOR_SECTION_LABELS,
@@ -41,7 +42,8 @@ const parserUserInstructions = `Return one object per item.
 - If there is no clear theme, build a slightly silly title using the two most unusual items.
 - quantity should be null when no explicit amount is written. Use a string only when an amount is present (e.g., "2", "1 lb", "12 ct").
 - notes should capture optional qualifiers (brand, ripeness, prep, substitutions). Use null when no qualifier is needed (this will be common).
-- canonical_name must be the core item only (no quantity text and no parenthetical notes).
+- canonical_name must be the core item only (no quantity text and no parenthetical notes), and must never be empty.
+- If unsure, set canonical_name to your best item guess from raw_text (do not leave canonical_name blank).
 - category_hint should be the best coarse aisle bucket for compatibility.
 - Choose major_section only from the scaffold section IDs.
 - Choose subsection from the scaffold subsection labels when possible, else null.
@@ -302,7 +304,29 @@ const looksLikeErrand = (value: string): boolean => {
   return errandPatterns.some((pattern) => pattern.test(value));
 };
 
-const isGoodTitle = (title: string, items: MagicModeResponse["items"]): boolean => {
+const getDistinctNames = (names: string[]): string[] => {
+  const seen = new Set<string>();
+  const distinct: string[] = [];
+  for (const name of names) {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    distinct.push(trimmed);
+  }
+  return distinct;
+};
+
+const namesFromMagicItems = (items: MagicModeResponse["items"]): string[] => {
+  return getDistinctNames(items.map((item) => item.canonical_name));
+};
+
+const isGoodTitle = (title: string, itemNames: string[]): boolean => {
   const normalizedTitle = title.trim().toLowerCase();
   if (!normalizedTitle) {
     return false;
@@ -317,8 +341,8 @@ const isGoodTitle = (title: string, items: MagicModeResponse["items"]): boolean 
   }
 
   const itemTokenSet = new Set<string>();
-  for (const item of items) {
-    for (const token of tokenize(item.canonical_name)) {
+  for (const itemName of itemNames) {
+    for (const token of tokenize(itemName)) {
       if (token.length > 1) {
         itemTokenSet.add(token);
       }
@@ -354,19 +378,8 @@ const toDisplayItem = (value: string): string => {
     .join(" ");
 };
 
-const pickUnusualItems = (items: MagicModeResponse["items"]): string[] => {
-  const seen = new Set<string>();
-  const ranked = items
-    .map((item) => item.canonical_name.trim())
-    .filter(Boolean)
-    .filter((name) => {
-      const key = name.toLowerCase();
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    })
+const pickUnusualItems = (itemNames: string[]): string[] => {
+  const ranked = getDistinctNames(itemNames)
     .map((name) => {
       const tokens = tokenize(name);
       const noveltyCount = tokens.filter((token) => !commonItemWords.has(token)).length;
@@ -386,8 +399,8 @@ const pickUnusualItems = (items: MagicModeResponse["items"]): string[] => {
     .filter(Boolean);
 };
 
-const fallbackListTitle = (items: MagicModeResponse["items"]): string => {
-  const picks = pickUnusualItems(items);
+const fallbackListTitle = (itemNames: string[]): string => {
+  const picks = pickUnusualItems(itemNames);
   if (picks.length >= 2) {
     const [first, second] = picks;
     const templates = [
@@ -404,12 +417,17 @@ const fallbackListTitle = (items: MagicModeResponse["items"]): string => {
   return "Cart of Curiosities";
 };
 
-const finalizeListTitle = (listTitle: string | null, items: MagicModeResponse["items"]): string => {
+export const finalizeListTitleForItems = (listTitle: string | null, itemNames: string[]): string => {
   const cleaned = cleanTitle(listTitle);
-  if (cleaned && isGoodTitle(cleaned, items)) {
+  const distinctNames = getDistinctNames(itemNames);
+  if (cleaned && isGoodTitle(cleaned, distinctNames)) {
     return cleaned;
   }
-  return fallbackListTitle(items);
+  return fallbackListTitle(distinctNames);
+};
+
+const finalizeListTitle = (listTitle: string | null, items: MagicModeResponse["items"]): string => {
+  return finalizeListTitleForItems(listTitle, namesFromMagicItems(items));
 };
 
 export const requestMagicModeParse = async (input: {
@@ -481,22 +499,25 @@ export const requestMagicModeParse = async (input: {
   const parsed = JSON.parse(outputText) as MagicModeResponse;
   return {
     ...parsed,
-    list_title: finalizeListTitle(parsed.list_title, parsed.items)
+    list_title: finalizeListTitle(parsed.list_title, parsed.items),
+    debug_raw_output: outputText
   };
 };
 
 export const mapMagicModeItems = (items: MagicModeResponse["items"]): ShoppingItem[] => {
   return items
-    .filter((item) => item.canonical_name.trim())
+    .filter((item) => item.canonical_name.trim() || item.raw_text.trim())
     .map((item) => {
       const parsedCanonical = parseQuantityAndNotes(item.canonical_name);
       const parsedRaw = parseQuantityAndNotes(item.raw_text);
-      const canonicalSeed =
+      const displayCanonicalName =
         cleanOptionalText(parsedCanonical.name) ??
-        cleanOptionalText(parsedRaw.name) ??
         cleanOptionalText(item.canonical_name) ??
-        item.canonical_name;
-      const categorized = categorizeItemName(canonicalSeed);
+        cleanOptionalText(parsedRaw.name) ??
+        cleanOptionalText(item.raw_text) ??
+        "Item";
+      const normalizedFromModel = normalizeName(displayCanonicalName).normalizedName;
+      const categorized = categorizeItemName(displayCanonicalName);
       const majorSectionCandidate = item.major_section;
       const scaffoldCategory = majorSectionCandidate
         ? MAJOR_SECTION_TO_CATEGORY[majorSectionCandidate]
@@ -532,9 +553,9 @@ export const mapMagicModeItems = (items: MagicModeResponse["items"]): ShoppingIt
 
       return {
         id: createId(),
-        rawText: cleanOptionalText(item.raw_text) ?? canonicalSeed,
-        canonicalName: categorized.canonicalName,
-        normalizedName: categorized.normalizedName,
+        rawText: cleanOptionalText(item.raw_text) ?? displayCanonicalName,
+        canonicalName: displayCanonicalName,
+        normalizedName: normalizedFromModel,
         quantity,
         notes,
         categoryId: finalCategoryId,

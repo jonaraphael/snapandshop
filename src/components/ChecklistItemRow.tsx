@@ -141,10 +141,11 @@ export const ChecklistItemRow = ({
   const rowStyle: CSSProperties = {
     transform: `translateX(${dragX}px)`
   };
+  const gestureActive = isDragging || isRemoving;
 
   return (
     <div
-      className={`check-row-shell ${swipeEnabled ? "swipe-enabled" : ""} ${isRemoving ? "removing" : ""}`}
+      className={`check-row-shell ${swipeEnabled ? "swipe-enabled" : ""} ${gestureActive ? "gesture-active" : ""} ${isRemoving ? "removing" : ""}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finalizeSwipe}

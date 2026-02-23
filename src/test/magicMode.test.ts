@@ -50,6 +50,38 @@ describe("mapMagicModeItems", () => {
     expect(item.notes).toBeNull();
   });
 
+  it("keeps an item from raw_text when canonical_name is empty", () => {
+    const [item] = mapMagicModeItems([
+      itemFromMagic({
+        raw_text: "capers",
+        canonical_name: "   ",
+        category_hint: "pantry",
+        major_section: "dry_grocery_aisles",
+        subsection: "Sauces and condiments",
+        within_section_order: 3
+      })
+    ]);
+
+    expect(item).toBeTruthy();
+    expect(item.normalizedName).toContain("caper");
+  });
+
+  it("preserves model canonical_name instead of fuzzy-rewriting it", () => {
+    const [item] = mapMagicModeItems([
+      itemFromMagic({
+        raw_text: "Capers",
+        canonical_name: "Capers",
+        category_hint: "pantry",
+        major_section: "dry_grocery_aisles",
+        subsection: "International foods",
+        within_section_order: 2
+      })
+    ]);
+
+    expect(item.canonicalName.toLowerCase()).toBe("capers");
+    expect(item.normalizedName).toContain("caper");
+  });
+
   it("forces the misc bucket when model marks the item as other", () => {
     const [item] = mapMagicModeItems([
       itemFromMagic({
