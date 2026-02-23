@@ -1,9 +1,10 @@
-import { mkdir } from "node:fs/promises";
+import { access, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { chromium, devices } from "@playwright/test";
 
 const BASE_URL = process.env.SCREENSHOT_BASE_URL ?? "http://127.0.0.1:4173";
 const OUTPUT_DIR = path.resolve("marketing-assets", "iphone");
+const MARKETING_IMAGE_PATH = process.env.MARKETING_IMAGE_PATH ?? "test.jpg";
 
 const STORAGE_KEYS = {
   prefs: "cl:prefs",
@@ -11,8 +12,43 @@ const STORAGE_KEYS = {
   recentLists: "cl:recentLists"
 };
 
-const tinyThumbnailDataUrl =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABieywaAAAABlBMVEX7+vr9/f3+QYxFAAAACklEQVQI12NgAAAAAgAB4iG8MwAAAABJRU5ErkJggg==";
+const FALLBACK_IMAGE_CANDIDATES = [MARKETING_IMAGE_PATH, "docs/images/marketing/test.jpeg", "testdata/test_list.jpg"];
+
+const mimeTypeForPath = (filePath) => {
+  const extension = path.extname(filePath).toLowerCase();
+  if (extension === ".png") {
+    return "image/png";
+  }
+  if (extension === ".webp") {
+    return "image/webp";
+  }
+  return "image/jpeg";
+};
+
+const resolveImagePath = async () => {
+  for (const candidate of FALLBACK_IMAGE_CANDIDATES) {
+    const absolutePath = path.resolve(candidate);
+    try {
+      await access(absolutePath);
+      return absolutePath;
+    } catch {
+      // try next candidate
+    }
+  }
+  throw new Error(
+    `No marketing source image found. Tried: ${FALLBACK_IMAGE_CANDIDATES.join(", ")}`
+  );
+};
+
+const loadImageDataUrl = async () => {
+  const sourcePath = await resolveImagePath();
+  const bytes = await readFile(sourcePath);
+  const mimeType = mimeTypeForPath(sourcePath);
+  return {
+    sourcePath,
+    dataUrl: `data:${mimeType};base64,${bytes.toString("base64")}`
+  };
+};
 
 const now = new Date();
 const nowIso = now.toISOString();
@@ -217,7 +253,7 @@ const mainSession = {
   updatedAt: nowIso,
   listTitle: "Saag Paneer + Tea Treasure Hunt",
   imageHash: null,
-  thumbnailDataUrl: tinyThumbnailDataUrl,
+  thumbnailDataUrl: null,
   rawText: marketingItems.map((item) => item.rawText).join("\n"),
   ocrConfidence: 0.95,
   ocrMeta: null,
@@ -315,7 +351,7 @@ const basePrefs = {
   byoOpenAiKey: "sk-demo-marketing-local-only"
 };
 
-const storagePayload = {
+const baseStoragePayload = {
   [STORAGE_KEYS.prefs]: basePrefs,
   [STORAGE_KEYS.session]: mainSession,
   [STORAGE_KEYS.recentLists]: recentLists
@@ -344,7 +380,7 @@ const shots = [
   }
 ];
 
-const captureShot = async (browser, shot) => {
+const captureShot = async (browser, shot, storagePayload) => {
   const context = await browser.newContext({
     ...devices["iPhone 14"]
   });
@@ -377,11 +413,20 @@ const captureShot = async (browser, shot) => {
 const run = async () => {
   await mkdir(OUTPUT_DIR, { recursive: true });
   const browser = await chromium.launch();
+  const sourceImage = await loadImageDataUrl();
+  console.log(`Using marketing source image: ${sourceImage.sourcePath}`);
+  const storagePayload = {
+    ...baseStoragePayload,
+    [STORAGE_KEYS.session]: {
+      ...baseStoragePayload[STORAGE_KEYS.session],
+      thumbnailDataUrl: sourceImage.dataUrl
+    }
+  };
 
   try {
     const written = [];
     for (const shot of shots) {
-      const pathWritten = await captureShot(browser, shot);
+      const pathWritten = await captureShot(browser, shot, storagePayload);
       written.push(pathWritten);
     }
 

@@ -218,7 +218,7 @@ export const Landing = (): JSX.Element => {
       onDrop={onDropFile}
     >
       <section className={`hero-card${dragActive ? " drag-active" : ""}`}>
-        <h1 className="hero-title">ChoppingList</h1>
+        <h1 className="hero-title">Snap&Shop</h1>
         <p className="hero-subtitle">Take a picture of a recipe or your handwritten shopping list, and get a sorted grocery list instantly.</p>
         <div className="cta-stack">
           <PrimaryButton

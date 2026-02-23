@@ -1,7 +1,7 @@
 {
-  "name": "ChoppingList.store",
-  "short_name": "ChoppingList",
-  "description": "Snap your list. Shop faster.",
+  "name": "Snap&Shop",
+  "short_name": "Snap&Shop",
+  "description": "Take a picture of a recipe or your handwritten shopping list, and get a sorted grocery list instantly.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f4f0e6",

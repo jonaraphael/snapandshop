@@ -1,7 +1,8 @@
-# ChoppingList
+# Snap&Shop
 
 Turn a messy shopping-list photo into a clean, aisle-ordered checklist in seconds.
 Open the image, extract items with AI, and shop in store layout order without bouncing across aisles.
+Website: `snapand.shop`
 
 ## Stack
 
@@ -31,7 +32,7 @@ npm run test:e2e
 
 ## Product Spec
 
-See `docs/ChoppingList_Product_Spec.md`.
+See `docs/SnapAndShop_Product_Spec.md`.
 
 ## Screenshots (iPhone)
 
@@ -59,7 +60,7 @@ Static deploy:
 
 ```bash
 npm run build
-npx wrangler pages deploy dist --project-name=choppinglist
+npx wrangler pages deploy dist --project-name=snapand-shop
 ```
 
 Optional Worker proxy:

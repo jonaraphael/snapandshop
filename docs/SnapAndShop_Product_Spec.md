@@ -1,8 +1,8 @@
-# ChoppingList.store Product Spec and Build Contract
+# snapand.shop Product Spec and Build Contract
 
 ## 1. Product Intent
 
-ChoppingList.store is a mobile-first web app that turns a photographed shopping list into an aisle-ordered checklist in seconds.
+Snap&Shop is a mobile-first web app at snapand.shop that turns a photographed shopping list into an aisle-ordered checklist in seconds.
 
 ### Core Promise
 - User gives a photo or gallery image.
@@ -206,4 +206,3 @@ E2E:
 - Section completion celebration fires when section becomes complete.
 - Unit tests pass.
 - Build succeeds in static mode.
-

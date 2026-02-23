@@ -1,4 +1,4 @@
-# ChoppingList.store Definition of Done
+# snapand.shop Definition of Done
 
 1. User can complete flow from landing to checklist on mobile.
 2. App accepts camera capture and gallery upload.
@@ -15,4 +15,3 @@
 13. Unit test suite covers parsing, categorization, ordering, dedupe.
 14. E2E test suite covers typed flow and text-size persistence.
 15. Static build succeeds and can be deployed to Cloudflare Pages.
-

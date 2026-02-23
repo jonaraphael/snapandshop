@@ -23,9 +23,9 @@ export default defineConfig({
       },
       includeAssets: ["icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
-        name: "ChoppingList.store",
-        short_name: "ChoppingList",
-        description: "Snap your list. Shop faster.",
+        name: "Snap&Shop",
+        short_name: "Snap&Shop",
+        description: "Take a picture of a recipe or your handwritten shopping list, and get a sorted grocery list instantly.",
         theme_color: "#2f4f1f",
         background_color: "#f4f0e6",
         display: "standalone",

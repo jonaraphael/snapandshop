@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "choppinglist-vision-proxy",
+  "name": "snapand-shop-vision-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2026-02-22",
   "vars": {
