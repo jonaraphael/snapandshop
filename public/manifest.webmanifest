@@ -4,8 +4,8 @@
   "description": "Take a picture of a recipe or your handwritten shopping list, and get a sorted grocery list instantly.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f4f0e6",
-  "theme_color": "#2f4f1f",
+  "background_color": "#ebf3fc",
+  "theme_color": "#035eb4",
   "icons": [
     {
       "src": "/icons/icon-192.png",

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
+import { BrandLogo } from "../components/BrandLogo";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { logDebug } from "../lib/debug/logger";
 
@@ -166,11 +167,11 @@ export const Landing = (): JSX.Element => {
 
   const gradientForId = (id: string): string => {
     const gradients = [
-      "linear-gradient(135deg, #f0b37e 0%, #f6e6d0 100%)",
-      "linear-gradient(135deg, #8ac9a5 0%, #d7efe2 100%)",
-      "linear-gradient(135deg, #7fb7df 0%, #dcecf8 100%)",
-      "linear-gradient(135deg, #d79bd8 0%, #f3e2f3 100%)",
-      "linear-gradient(135deg, #a8b67a 0%, #e7edd4 100%)"
+      "linear-gradient(135deg, #5aa0de 0%, #e6f2fd 100%)",
+      "linear-gradient(135deg, #2d79c6 0%, #d8e9fb 100%)",
+      "linear-gradient(135deg, #89b8e4 0%, #edf5fe 100%)",
+      "linear-gradient(135deg, #3d6f9f 0%, #dceaf9 100%)",
+      "linear-gradient(135deg, #659eca 0%, #e7f1fb 100%)"
     ];
     let hash = 0;
     for (const char of id) {
@@ -188,7 +189,10 @@ export const Landing = (): JSX.Element => {
       onDrop={onDropFile}
     >
       <section className={`hero-card${dragActive ? " drag-active" : ""}`}>
-        <h1 className="hero-title">Snap&Shop</h1>
+        <div className="landing-brand">
+          <BrandLogo size={66} className="landing-brand-logo" decorative />
+          <h1 className="hero-title">Snap&Shop</h1>
+        </div>
         <p className="hero-subtitle">Take a picture of a recipe or your handwritten shopping list, and get a sorted grocery list instantly.</p>
         <div className="cta-stack">
           <PrimaryButton

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { BrandLogo } from "./BrandLogo";
 
 interface TopBarProps {
   title: string;
@@ -30,7 +31,10 @@ export const TopBar = ({
           </button>
         ) : null}
       </div>
-      <h1 className="top-bar-title">{title}</h1>
+      <div className="top-bar-title-wrap">
+        <BrandLogo size={22} className="top-bar-logo" decorative />
+        <h1 className="top-bar-title">{title}</h1>
+      </div>
       <div className="top-bar-side align-right">
         {rightContent ? (
           rightContent

@@ -4,6 +4,21 @@ Turn a messy shopping-list photo into a clean, aisle-ordered checklist in second
 Open the image, extract items with AI, and shop in store layout order without bouncing across aisles.
 Website: `snapand.shop`
 
+## Screenshots (iPhone)
+
+<p>
+  <img src="docs/images/marketing/01-home-recent-lists.png" alt="Home with recent lists" width="240" />
+  <img src="docs/images/marketing/02-list-checklist.png" alt="Checklist view" width="240" />
+  <img src="docs/images/marketing/03-list-show-picture.png" alt="Original picture sheet" width="240" />
+  <img src="docs/images/marketing/04-review-edit.png" alt="Edit list screen" width="240" />
+</p>
+
+- `Home`: upload by camera/gallery or jump straight to typing; recent lists are one tap away.
+- `Checklist`: grouped in aisle flow, with quick checkoff while shopping.
+- `Show Picture`: pull up the original list image any time to verify AI extraction.
+- `Edit`: fast corrections before or during checkout.
+- `Share by URL`: copy the address bar on `/list` and open it on another device to load the exact same checklist.
+
 ## Stack
 
 - React + TypeScript + Vite
@@ -40,21 +55,6 @@ npm run test:e2e
 ## Product Spec
 
 See `docs/SnapAndShop_Product_Spec.md`.
-
-## Screenshots (iPhone)
-
-<p>
-  <img src="docs/images/marketing/01-home-recent-lists.png" alt="Home with recent lists" width="240" />
-  <img src="docs/images/marketing/02-list-checklist.png" alt="Checklist view" width="240" />
-  <img src="docs/images/marketing/03-list-show-picture.png" alt="Original picture sheet" width="240" />
-  <img src="docs/images/marketing/04-review-edit.png" alt="Edit list screen" width="240" />
-</p>
-
-- `Home`: upload by camera/gallery or jump straight to typing; recent lists are one tap away.
-- `Checklist`: grouped in aisle flow, with quick checkoff while shopping.
-- `Show Picture`: pull up the original list image any time to verify AI extraction.
-- `Edit`: fast corrections before or during checkout.
-- `Share by URL`: copy the address bar on `/list` and open it on another device to load the exact same checklist.
 
 ## Architecture Notes
 

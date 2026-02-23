@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../app/routes";
 import { useAppStore } from "../app/store";
+import { BrandLogo } from "../components/BrandLogo";
 import { logDebug } from "../lib/debug/logger";
 import {
   finalizeListTitleForItems,
@@ -205,6 +206,9 @@ export const Processing = (): JSX.Element => {
 
   return (
     <main className="screen processing-screen">
+      <div className={`processing-brand-mark ${isLoading ? "loading" : ""}`} aria-hidden>
+        <BrandLogo size={72} className="processing-logo" decorative />
+      </div>
       <h1 className="screen-title">Reading your list…</h1>
       {isLoading ? <p className="processing-funny">{FUNNY_LOADING_MESSAGES[funnyIndex]}</p> : null}
       <div
