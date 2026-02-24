@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MagicModeResponse } from "../app/types";
-import { mapMagicModeItems } from "../lib/ocr/magicMode";
+import { finalizeListTitleForItems, mapMagicModeItems } from "../lib/ocr/magicMode";
 
 const itemFromMagic = (
   overrides: Partial<MagicModeResponse["items"][number]>
@@ -120,5 +120,34 @@ describe("mapMagicModeItems", () => {
     expect(item.majorSectionLabel).toBeNull();
     expect(item.majorSectionOrder).toBeNull();
     expect(item.majorSectionItemOrder).toBeNull();
+  });
+});
+
+describe("finalizeListTitleForItems", () => {
+  it("builds a playful alliterative recipe title from strong ingredient overlap", () => {
+    const title = finalizeListTitleForItems(null, [
+      "avocado",
+      "cilantro",
+      "lime",
+      "onion",
+      "jalapeno",
+      "chips"
+    ]);
+
+    expect(title).toMatch(/^\w+ Guacamole$/);
+    const [adjective, recipe] = title.split(" ");
+    expect(adjective[0].toLowerCase()).toBe(recipe[0].toLowerCase());
+  });
+
+  it("uses an exotic-item title when no recipe candidate clearly matches", () => {
+    const title = finalizeListTitleForItems(null, ["gochujang", "sumac", "nori"]);
+    expect(title).toMatch(/^\w+ Gochujang$/);
+  });
+
+  it("rejects run/adventure style generic titles", () => {
+    const title = finalizeListTitleForItems("Weekend grocery run", ["avocado", "lime", "cilantro"]);
+    expect(title.toLowerCase()).not.toContain("run");
+    expect(title.toLowerCase()).not.toContain("adventure");
+    expect(title.toLowerCase()).not.toContain("quest");
   });
 });
