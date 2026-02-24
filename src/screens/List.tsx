@@ -14,7 +14,8 @@ import {
   requestMagicModeParse
 } from "../lib/ocr/magicMode";
 import type { RecentListItem, ShoppingItem } from "../app/types";
-import { createServerShareUrl } from "../lib/share/shareApi";
+import { encodeSharedListState } from "../lib/share/urlListState";
+import { SHARE_ID_QUERY_PARAM, createServerShareUrl } from "../lib/share/shareApi";
 import { parseQuantityAndNotes } from "../lib/parse/parseQuantity";
 import { scaleQuantityString } from "../lib/parse/scaleQuantity";
 
@@ -248,8 +249,12 @@ export const List = (): JSX.Element => {
   const lastShakeAtRef = useRef(0);
   const addPhotoAbortRef = useRef<AbortController | null>(null);
   const shareStatusTimerRef = useRef<number | null>(null);
+  const autoShareTimerRef = useRef<number | null>(null);
+  const autoShareRequestRef = useRef(0);
+  const lastSyncedShareTokenRef = useRef<string | null>(null);
   const sourceImageUrl = imagePreviewUrl ?? session?.thumbnailDataUrl ?? null;
   const activeListTitle = session?.listTitle?.trim() || "Shopping list";
+  const sessionShareToken = useMemo(() => encodeSharedListState(session), [session]);
 
   const sections = useMemo(() => buildSections(session?.items ?? []), [session?.items]);
   const showModelDebugPanel = useMemo(() => shouldShowModelDebugPanel(), []);
@@ -522,6 +527,13 @@ export const List = (): JSX.Element => {
     }
   };
 
+  const clearAutoShareTimer = (): void => {
+    if (autoShareTimerRef.current !== null) {
+      window.clearTimeout(autoShareTimerRef.current);
+      autoShareTimerRef.current = null;
+    }
+  };
+
   const setShareStatusWithTimeout = (message: string): void => {
     clearShareStatusTimer();
     setShareStatus(message);
@@ -578,9 +590,22 @@ export const List = (): JSX.Element => {
 
     setIsSharing(true);
     try {
-      const shareUrl = await createServerShareUrl(currentSession, window.location.href);
+      const currentToken = encodeSharedListState(currentSession);
+      const currentSearch = new URLSearchParams(window.location.search);
+      const existingShareId = currentSearch.get(SHARE_ID_QUERY_PARAM);
+      const canReuseCurrentUrl =
+        Boolean(existingShareId) &&
+        Boolean(currentToken) &&
+        lastSyncedShareTokenRef.current === currentToken;
+
+      const shareUrl = canReuseCurrentUrl
+        ? window.location.href
+        : await createServerShareUrl(currentSession, window.location.href);
       if (window.location.href !== shareUrl) {
         window.history.replaceState(null, "", shareUrl);
+      }
+      if (currentToken) {
+        lastSyncedShareTokenRef.current = currentToken;
       }
       const copied = await copyToClipboard(shareUrl);
       setShareStatusWithTimeout(copied ? "Link copied. Opening SMS…" : "Opening SMS…");
@@ -667,8 +692,66 @@ export const List = (): JSX.Element => {
   };
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (!session || !sessionShareToken) {
+      lastSyncedShareTokenRef.current = null;
+      clearAutoShareTimer();
+      return;
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const hasShareId = Boolean(params.get(SHARE_ID_QUERY_PARAM));
+
+    if (lastSyncedShareTokenRef.current === null && hasShareId) {
+      // If this list was opened from a short share URL, trust it until the list changes.
+      lastSyncedShareTokenRef.current = sessionShareToken;
+      return;
+    }
+
+    if (hasShareId && lastSyncedShareTokenRef.current === sessionShareToken) {
+      return;
+    }
+
+    clearAutoShareTimer();
+    const requestId = autoShareRequestRef.current + 1;
+    autoShareRequestRef.current = requestId;
+
+    autoShareTimerRef.current = window.setTimeout(() => {
+      void (async () => {
+        const latestSession = useAppStore.getState().session;
+        const latestToken = encodeSharedListState(latestSession);
+        if (!latestSession || !latestToken || latestToken !== sessionShareToken) {
+          return;
+        }
+
+        try {
+          const shareUrl = await createServerShareUrl(latestSession, window.location.href);
+          if (autoShareRequestRef.current !== requestId) {
+            return;
+          }
+
+          if (window.location.href !== shareUrl) {
+            window.history.replaceState(null, "", shareUrl);
+          }
+          lastSyncedShareTokenRef.current = latestToken;
+        } catch {
+          // Leave the current URL unchanged if the share service is unavailable.
+        }
+      })();
+    }, 450);
+
+    return () => {
+      clearAutoShareTimer();
+    };
+  }, [session, sessionShareToken]);
+
+  useEffect(() => {
     return () => {
       clearShareStatusTimer();
+      clearAutoShareTimer();
     };
   }, []);
 
