@@ -496,9 +496,41 @@ const toDisplayItem = (value: string): string => {
     .join(" ");
 };
 
-const pickBestRecipeTitle = (itemNames: string[]): string | null => {
+interface RecipeMatch {
+  profile: RecipeProfile;
+  score: number;
+  matches: number;
+}
+
+interface RankedItem {
+  name: string;
+  tokens: string[];
+  score: number;
+}
+
+const rankDistinctItems = (
+  itemNames: string[],
+  scoreBoost?: (tokens: string[]) => number
+): RankedItem[] => {
+  return getDistinctNames(itemNames)
+    .map((name) => {
+      const tokens = tokenize(name).map(normalizeIngredientToken);
+      const noveltyCount = tokens.filter((token) => !commonItemWords.has(token)).length;
+      const baseScore = noveltyCount * 2.25 + (tokens.length > 1 ? 0.75 : 0) + Math.min(name.length, 26) / 12;
+      const boostedScore = scoreBoost ? baseScore + scoreBoost(tokens) : baseScore;
+      return { name, tokens, score: boostedScore };
+    })
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+      return right.name.length - left.name.length;
+    });
+};
+
+const pickBestRecipeMatch = (itemNames: string[]): RecipeMatch | null => {
   const tokenSet = toTokenSet(itemNames);
-  let best: { profile: RecipeProfile; score: number; matches: number } | null = null;
+  let best: RecipeMatch | null = null;
 
   for (const profile of recipeProfiles) {
     const matches = profile.keywords.filter((keyword) => tokenSet.has(keyword)).length;
@@ -517,41 +549,57 @@ const pickBestRecipeTitle = (itemNames: string[]): string | null => {
     }
   }
 
-  return best?.profile.title ?? null;
+  return best;
 };
 
 const pickMostExoticItem = (itemNames: string[]): string | null => {
-  const ranked = getDistinctNames(itemNames)
-    .map((name) => {
-      const tokens = tokenize(name).map(normalizeIngredientToken);
-      const noveltyCount = tokens.filter((token) => !commonItemWords.has(token)).length;
-      const score = noveltyCount * 2.25 + (tokens.length > 1 ? 0.75 : 0) + Math.min(name.length, 26) / 12;
-      return { name, score };
-    })
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-      return right.name.length - left.name.length;
-    });
-
+  const ranked = rankDistinctItems(itemNames);
   const best = ranked[0];
   return best ? toDisplayItem(best.name) : null;
+};
+
+const pickSecondItemOutsideRecipe = (itemNames: string[], recipe: RecipeProfile): string | null => {
+  const recipeKeywordSet = new Set(
+    recipe.keywords.map((keyword) => normalizeIngredientToken(keyword.toLowerCase()))
+  );
+  const ranked = rankDistinctItems(itemNames, (tokens) =>
+    tokens.some((token) => recipeKeywordSet.has(token)) ? 0 : 3
+  );
+  const outsideRecipe = ranked.find(
+    (candidate) => !candidate.tokens.some((token) => recipeKeywordSet.has(token))
+  );
+  const best = outsideRecipe ?? ranked[0];
+  return best ? toDisplayItem(best.name) : null;
+};
+
+const pickDistinctItemPair = (itemNames: string[]): { first: string; second: string } => {
+  const ranked = rankDistinctItems(itemNames);
+  const first = ranked[0] ? toDisplayItem(ranked[0].name) : "Market";
+  const secondCandidate = ranked.find(
+    (candidate) => toDisplayItem(candidate.name).toLowerCase() !== first.toLowerCase()
+  );
+  const second = secondCandidate ? toDisplayItem(secondCandidate.name) : first;
+  return { first, second };
 };
 
 const fallbackListTitle = (itemNames: string[]): string => {
   const distinctNames = getDistinctNames(itemNames);
   const seed = distinctNames.join("|");
 
-  const recipeTitle = pickBestRecipeTitle(distinctNames);
-  if (recipeTitle) {
+  const recipeMatch = pickBestRecipeMatch(distinctNames);
+  if (recipeMatch) {
+    const recipeTitle = recipeMatch.profile.title;
+    const secondItem =
+      pickSecondItemOutsideRecipe(distinctNames, recipeMatch.profile) ??
+      pickMostExoticItem(distinctNames) ??
+      "Market";
     const adjective = pickAlliterativeAdjective(recipeTitle, seed);
-    return `${adjective} ${recipeTitle}`;
+    return `${adjective} ${recipeTitle} & ${secondItem}`;
   }
 
-  const exoticItem = pickMostExoticItem(distinctNames) ?? "Market Mix";
-  const adjective = pickAlliterativeAdjective(exoticItem, seed);
-  return `${adjective} ${exoticItem}`;
+  const { first, second } = pickDistinctItemPair(distinctNames);
+  const adjective = pickAlliterativeAdjective(first, seed);
+  return `${adjective} ${first} & ${second}`;
 };
 
 export const finalizeListTitleForItems = (listTitle: string | null, itemNames: string[]): string => {

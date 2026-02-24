@@ -124,24 +124,39 @@ describe("mapMagicModeItems", () => {
 });
 
 describe("finalizeListTitleForItems", () => {
-  it("builds a playful alliterative recipe title from strong ingredient overlap", () => {
+  it("builds an alliterative recipe title and appends a non-recipe item when available", () => {
     const title = finalizeListTitleForItems(null, [
       "avocado",
       "cilantro",
       "lime",
       "onion",
       "jalapeno",
-      "chips"
+      "chips",
+      "zaatar"
     ]);
 
-    expect(title).toMatch(/^\w+ Guacamole$/);
+    expect(title).toMatch(/^\w+ Guacamole & .+$/);
     const [adjective, recipe] = title.split(" ");
     expect(adjective[0].toLowerCase()).toBe(recipe[0].toLowerCase());
+    expect(title.toLowerCase()).toContain("& zaatar");
   });
 
-  it("uses an exotic-item title when no recipe candidate clearly matches", () => {
+  it("uses two list items with ampersand when no recipe candidate clearly matches", () => {
     const title = finalizeListTitleForItems(null, ["gochujang", "sumac", "nori"]);
-    expect(title).toMatch(/^\w+ Gochujang$/);
+    const [left, right] = title.split(" & ");
+    expect(left).toBeTruthy();
+    expect(right).toBeTruthy();
+
+    const leftParts = left.split(" ");
+    const adjective = leftParts[0];
+    const firstItem = leftParts.slice(1).join(" ");
+    const secondItem = right.trim();
+    const inputItems = new Set(["gochujang", "sumac", "nori"]);
+
+    expect(inputItems.has(firstItem.toLowerCase())).toBe(true);
+    expect(inputItems.has(secondItem.toLowerCase())).toBe(true);
+    expect(firstItem.toLowerCase()).not.toBe(secondItem.toLowerCase());
+    expect(adjective[0].toLowerCase()).toBe(firstItem[0].toLowerCase());
   });
 
   it("rejects run/adventure style generic titles", () => {
@@ -149,5 +164,6 @@ describe("finalizeListTitleForItems", () => {
     expect(title.toLowerCase()).not.toContain("run");
     expect(title.toLowerCase()).not.toContain("adventure");
     expect(title.toLowerCase()).not.toContain("quest");
+    expect(title).toContain(" & ");
   });
 });
