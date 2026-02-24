@@ -114,6 +114,19 @@ describe("shareApi", () => {
     expect(fetchSpy.mock.calls[0][0]).toBe("https://worker.example.com/api/share");
   });
 
+  it("rewrites SHARE proxy URL when it is mistakenly set to vision endpoint", async () => {
+    vi.stubEnv("VITE_SHARE_PROXY_URL", "https://worker.example.com/api/vision-parse");
+    vi.stubEnv("VITE_VISION_PROXY_URL", "");
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(JSON.stringify({ id: "AbCdEfGhIjKlMnOpQrStUv" }), { status: 201 }));
+
+    await createServerShareId(buildSession());
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy.mock.calls[0][0]).toBe("https://worker.example.com/api/share");
+  });
+
   it("fetches a shared token by short ID", async () => {
     vi.stubEnv("VITE_SHARE_PROXY_URL", "");
     vi.stubEnv("VITE_VISION_PROXY_URL", "");

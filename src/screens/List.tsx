@@ -14,8 +14,7 @@ import {
   requestMagicModeParse
 } from "../lib/ocr/magicMode";
 import type { RecentListItem, ShoppingItem } from "../app/types";
-import { encodeSharedListState } from "../lib/share/urlListState";
-import { buildLegacyShareUrl, createServerShareUrl } from "../lib/share/shareApi";
+import { createServerShareUrl } from "../lib/share/shareApi";
 import { parseQuantityAndNotes } from "../lib/parse/parseQuantity";
 import { scaleQuantityString } from "../lib/parse/scaleQuantity";
 
@@ -580,24 +579,14 @@ export const List = (): JSX.Element => {
     setIsSharing(true);
     try {
       const shareUrl = await createServerShareUrl(currentSession, window.location.href);
+      if (window.location.href !== shareUrl) {
+        window.history.replaceState(null, "", shareUrl);
+      }
       const copied = await copyToClipboard(shareUrl);
       setShareStatusWithTimeout(copied ? "Link copied. Opening SMS…" : "Opening SMS…");
       openSmsComposer(shareUrl);
       return;
     } catch (error) {
-      const fallbackToken = encodeSharedListState(currentSession);
-      if (fallbackToken) {
-        const fallbackUrl = buildLegacyShareUrl(fallbackToken, window.location.href);
-        const copied = await copyToClipboard(fallbackUrl);
-        setShareStatusWithTimeout(
-          copied
-            ? "Share service unavailable. Copied backup link."
-            : "Share service unavailable. Opening SMS with backup link."
-        );
-        openSmsComposer(fallbackUrl);
-        return;
-      }
-
       setShareStatusWithTimeout(
         error instanceof Error && error.message ? error.message : "Could not create a share link."
       );

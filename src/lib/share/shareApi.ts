@@ -16,16 +16,24 @@ interface ShareFetchResponse {
 
 const trimTrailingSlashes = (value: string): string => value.replace(/\/+$/g, "");
 
+const normalizeShareProxyUrl = (value: string): string => {
+  const trimmed = trimTrailingSlashes(value.trim());
+  if (!trimmed) {
+    return "";
+  }
+  // Accept accidentally configured vision endpoints and coerce them to share endpoint.
+  return trimmed.replace(/\/api\/vision-parse$/i, "/api/share");
+};
+
 const resolveShareProxyUrl = (): string => {
-  const configured = import.meta.env.VITE_SHARE_PROXY_URL?.trim();
+  const configured = normalizeShareProxyUrl(import.meta.env.VITE_SHARE_PROXY_URL ?? "");
   if (configured) {
-    return trimTrailingSlashes(configured);
+    return configured;
   }
 
-  const visionProxy = import.meta.env.VITE_VISION_PROXY_URL?.trim();
+  const visionProxy = normalizeShareProxyUrl(import.meta.env.VITE_VISION_PROXY_URL ?? "");
   if (visionProxy) {
-    const rewritten = visionProxy.replace(/\/api\/vision-parse\/?$/i, "/api/share");
-    return trimTrailingSlashes(rewritten);
+    return visionProxy;
   }
 
   return DEFAULT_SHARE_PROXY_PATH;
