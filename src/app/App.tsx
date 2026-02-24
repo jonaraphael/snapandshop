@@ -10,9 +10,9 @@ import { useEffect, useState } from "react";
 import { logDebug } from "../lib/debug/logger";
 import {
   decodeSharedListState,
-  encodeSharedListState,
   SHARE_QUERY_PARAM
 } from "../lib/share/urlListState";
+import { SHARE_ID_QUERY_PARAM, fetchSharedTokenById } from "../lib/share/shareApi";
 
 const RouteLogger = (): null => {
   const location = useLocation();
@@ -30,7 +30,6 @@ const RouteLogger = (): null => {
 const UrlShareSync = (): null => {
   const location = useLocation();
   const navigate = useNavigate();
-  const session = useAppStore((state) => state.session);
   const loadSharedList = useAppStore((state) => state.loadSharedList);
   const [hydrationComplete, setHydrationComplete] = useState(false);
 
@@ -39,81 +38,69 @@ const UrlShareSync = (): null => {
       return;
     }
 
-    const params = new URLSearchParams(location.search);
-    const token = params.get(SHARE_QUERY_PARAM);
-    if (!token) {
+    let canceled = false;
+    const controller = new AbortController();
+
+    const hydrateFromUrl = async (): Promise<void> => {
+      const params = new URLSearchParams(location.search);
+      const shareId = params.get(SHARE_ID_QUERY_PARAM);
+      const legacyToken = params.get(SHARE_QUERY_PARAM);
+      let tokenToDecode: string | null = null;
+
+      if (shareId) {
+        try {
+          tokenToDecode = await fetchSharedTokenById(shareId, controller.signal);
+        } catch (error) {
+          logDebug("share_id_fetch_failed", {
+            shareId,
+            message: error instanceof Error ? error.message : String(error)
+          });
+        }
+      }
+
+      if (!tokenToDecode && legacyToken) {
+        tokenToDecode = legacyToken;
+      }
+
+      const decoded = tokenToDecode ? decodeSharedListState(tokenToDecode) : null;
+      if (decoded) {
+        loadSharedList(decoded);
+        logDebug("share_url_loaded", {
+          itemCount: decoded.items.length,
+          hasTitle: Boolean(decoded.listTitle),
+          viaShareId: Boolean(shareId)
+        });
+      } else if (shareId || legacyToken) {
+        logDebug("share_url_decode_failed", {
+          hasShareId: Boolean(shareId),
+          hasLegacyToken: Boolean(legacyToken)
+        });
+      }
+
+      if (canceled) {
+        return;
+      }
+
       setHydrationComplete(true);
-      return;
-    }
 
-    const decoded = decodeSharedListState(token);
-    if (!decoded) {
-      logDebug("share_url_decode_failed");
-      setHydrationComplete(true);
-      return;
-    }
+      if (decoded && location.pathname !== ROUTES.list) {
+        navigate(
+          {
+            pathname: ROUTES.list,
+            search: location.search
+          },
+          { replace: true }
+        );
+      }
+    };
 
-    loadSharedList(decoded);
-    logDebug("share_url_loaded", {
-      itemCount: decoded.items.length,
-      hasTitle: Boolean(decoded.listTitle)
-    });
-    setHydrationComplete(true);
+    void hydrateFromUrl();
 
-    if (location.pathname !== ROUTES.list) {
-      navigate(
-        {
-          pathname: ROUTES.list,
-          search: location.search
-        },
-        { replace: true }
-      );
-    }
+    return () => {
+      canceled = true;
+      controller.abort();
+    };
   }, [hydrationComplete, location.pathname, location.search, loadSharedList, navigate]);
-
-  useEffect(() => {
-    if (!hydrationComplete) {
-      return;
-    }
-    if (location.pathname !== ROUTES.list) {
-      return;
-    }
-
-    const params = new URLSearchParams(location.search);
-    const currentToken = params.get(SHARE_QUERY_PARAM);
-    const nextToken = encodeSharedListState(session);
-
-    if (!nextToken && !currentToken) {
-      return;
-    }
-
-    if (nextToken && currentToken === nextToken) {
-      return;
-    }
-
-    if (nextToken) {
-      params.set(SHARE_QUERY_PARAM, nextToken);
-    } else {
-      params.delete(SHARE_QUERY_PARAM);
-    }
-
-    const nextSearch = params.toString();
-    const normalizedCurrentSearch = location.search.startsWith("?")
-      ? location.search.slice(1)
-      : location.search;
-    if (nextSearch === normalizedCurrentSearch) {
-      return;
-    }
-
-    navigate(
-      {
-        pathname: location.pathname,
-        search: nextSearch ? `?${nextSearch}` : "",
-        hash: location.hash
-      },
-      { replace: true }
-    );
-  }, [hydrationComplete, location.hash, location.pathname, location.search, navigate, session]);
 
   return null;
 };

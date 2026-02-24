@@ -60,6 +60,7 @@ jobs:
         env:
           VITE_BASE_PATH: ${{ steps.base.outputs.base_path }}
           VITE_VISION_PROXY_URL: ${{ vars.VISION_PROXY_URL }}
+          VITE_SHARE_PROXY_URL: ${{ vars.SHARE_PROXY_URL || vars.VISION_PROXY_URL }}
 
       - name: SPA fallback and no-jekyll
         run: |

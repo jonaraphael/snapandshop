@@ -1,6 +1,8 @@
 export interface Env {
   OPENAI_API_KEY: string;
   OPENAI_MODEL?: string;
+  SHARE_DB?: D1Database;
+  SHARE_TTL_SECONDS?: string;
 }
 
 const CATEGORY_ENUM = [
@@ -413,16 +415,54 @@ const outputFormat = {
   }
 };
 
+const SHARE_ID_BYTE_LENGTH = 16;
+const SHARE_ID_PATTERN = /^[A-Za-z0-9_-]{16,64}$/;
+const DEFAULT_SHARE_TTL_SECONDS = 60 * 60 * 24 * 30;
+const MAX_SHARE_TOKEN_LENGTH = 32_000;
+
 const withCors = (response: Response): Response => {
   const headers = new Headers(response.headers);
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
     headers
   });
+};
+
+const jsonResponse = (status: number, payload: unknown): Response => {
+  return withCors(
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+  );
+};
+
+const toBase64Url = (bytes: Uint8Array): string => {
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    binary += String.fromCharCode(bytes[index]);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+
+const createShareId = (): string => {
+  const bytes = new Uint8Array(SHARE_ID_BYTE_LENGTH);
+  crypto.getRandomValues(bytes);
+  return toBase64Url(bytes);
+};
+
+const parseShareTtlSeconds = (value: string | undefined): number => {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_SHARE_TTL_SECONDS;
+  }
+  return Math.max(60, Math.min(60 * 60 * 24 * 180, Math.floor(parsed)));
 };
 
 const parseOutputText = (body: any): string => {
@@ -443,6 +483,210 @@ const parseOutputText = (body: any): string => {
   throw new Error("Unexpected response format from OpenAI");
 };
 
+const handleVisionParse = async (request: Request, env: Env): Promise<Response> => {
+  if (!env.OPENAI_API_KEY) {
+    return withCors(new Response("OPENAI_API_KEY missing", { status: 500 }));
+  }
+
+  let payload: { imageBase64: string; mimeType: string; model?: string };
+  try {
+    payload = (await request.json()) as { imageBase64: string; mimeType: string; model?: string };
+  } catch {
+    return withCors(new Response("Invalid JSON body", { status: 400 }));
+  }
+
+  if (!payload.imageBase64) {
+    return withCors(new Response("Missing imageBase64", { status: 400 }));
+  }
+
+  const requestedModel = typeof payload.model === "string" ? payload.model.trim() : "";
+  const model = requestedModel || env.OPENAI_MODEL || "gpt-5.2";
+
+  const openAiResp = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model,
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text: parserSystemPrompt
+            }
+          ]
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: parserUserPrompt
+            },
+            {
+              type: "input_image",
+              image_url: `data:${payload.mimeType || "image/jpeg"};base64,${payload.imageBase64}`,
+              detail: "high"
+            }
+          ]
+        }
+      ],
+      text: {
+        format: outputFormat
+      }
+    })
+  });
+
+  if (!openAiResp.ok) {
+    const errorBody = await openAiResp.text();
+    return withCors(new Response(errorBody, { status: openAiResp.status }));
+  }
+
+  const body = await openAiResp.json();
+  const outputText = parseOutputText(body);
+
+  return withCors(
+    new Response(outputText, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+  );
+};
+
+const handleShareCreate = async (request: Request, env: Env): Promise<Response> => {
+  const shareDb = env.SHARE_DB;
+  if (!shareDb) {
+    return jsonResponse(500, {
+      error: "SHARE_DB missing. Configure a D1 binding named SHARE_DB in wrangler config."
+    });
+  }
+
+  let payload: { token?: unknown };
+  try {
+    payload = (await request.json()) as { token?: unknown };
+  } catch {
+    return jsonResponse(400, { error: "Invalid JSON body." });
+  }
+
+  const token = typeof payload.token === "string" ? payload.token.trim() : "";
+  if (!token) {
+    return jsonResponse(400, { error: "Missing token." });
+  }
+  if (token.length > MAX_SHARE_TOKEN_LENGTH) {
+    return jsonResponse(413, { error: "Token too large." });
+  }
+  if (!/^v[12]\./.test(token)) {
+    return jsonResponse(400, { error: "Invalid token format." });
+  }
+
+  const now = Date.now();
+  const ttlSeconds = parseShareTtlSeconds(env.SHARE_TTL_SECONDS);
+  const expiresAtMs = now + ttlSeconds * 1000;
+  const expiresAtIso = new Date(expiresAtMs).toISOString();
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const id = createShareId();
+    try {
+      await shareDb
+        .prepare(
+          "INSERT INTO shared_lists (id, token, created_at_ms, expires_at_ms, access_count, last_accessed_at_ms) VALUES (?1, ?2, ?3, ?4, 0, NULL)"
+        )
+        .bind(id, token, now, expiresAtMs)
+        .run();
+
+      return jsonResponse(201, {
+        id,
+        expiresAt: expiresAtIso
+      });
+    } catch (error) {
+      const message = String(error);
+      if (/UNIQUE constraint failed/i.test(message)) {
+        continue;
+      }
+      if (/no such table/i.test(message)) {
+        return jsonResponse(500, {
+          error: "shared_lists table missing. Run worker/schema.sql against the D1 database."
+        });
+      }
+      return jsonResponse(500, {
+        error: "Could not store share payload."
+      });
+    }
+  }
+
+  return jsonResponse(503, { error: "Could not allocate a unique share ID." });
+};
+
+const handleShareFetch = async (shareIdRaw: string, env: Env): Promise<Response> => {
+  const shareDb = env.SHARE_DB;
+  if (!shareDb) {
+    return jsonResponse(500, {
+      error: "SHARE_DB missing. Configure a D1 binding named SHARE_DB in wrangler config."
+    });
+  }
+
+  const shareId = shareIdRaw.trim();
+  if (!SHARE_ID_PATTERN.test(shareId)) {
+    return jsonResponse(400, { error: "Invalid share ID." });
+  }
+
+  interface ShareRow {
+    token: string;
+    expires_at_ms: number | null;
+  }
+
+  let row: ShareRow | null;
+  try {
+    row = await shareDb
+      .prepare("SELECT token, expires_at_ms FROM shared_lists WHERE id = ?1")
+      .bind(shareId)
+      .first<ShareRow>();
+  } catch (error) {
+    const message = String(error);
+    if (/no such table/i.test(message)) {
+      return jsonResponse(500, {
+        error: "shared_lists table missing. Run worker/schema.sql against the D1 database."
+      });
+    }
+    return jsonResponse(500, { error: "Could not load share payload." });
+  }
+
+  if (!row || typeof row.token !== "string") {
+    return jsonResponse(404, { error: "Share link not found." });
+  }
+
+  const now = Date.now();
+  const expiresAtMs = typeof row.expires_at_ms === "number" ? row.expires_at_ms : null;
+  if (expiresAtMs !== null && expiresAtMs < now) {
+    await shareDb
+      .prepare("DELETE FROM shared_lists WHERE id = ?1")
+      .bind(shareId)
+      .run()
+      .catch(() => undefined);
+    return jsonResponse(410, { error: "Share link expired." });
+  }
+
+  await shareDb
+    .prepare(
+      "UPDATE shared_lists SET access_count = access_count + 1, last_accessed_at_ms = ?2 WHERE id = ?1"
+    )
+    .bind(shareId, now)
+    .run()
+    .catch(() => undefined);
+
+  return jsonResponse(200, {
+    id: shareId,
+    token: row.token,
+    expiresAt: expiresAtMs ? new Date(expiresAtMs).toISOString() : null
+  });
+};
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
@@ -450,82 +694,21 @@ export default {
     }
 
     const url = new URL(request.url);
-    if (url.pathname !== "/api/vision-parse" || request.method !== "POST") {
-      return withCors(new Response("Not Found", { status: 404 }));
+    if (url.pathname === "/api/vision-parse" && request.method === "POST") {
+      return handleVisionParse(request, env);
     }
-
-    if (!env.OPENAI_API_KEY) {
-      return withCors(new Response("OPENAI_API_KEY missing", { status: 500 }));
+    if (url.pathname === "/api/share" && request.method === "POST") {
+      return handleShareCreate(request, env);
     }
-
-    let payload: { imageBase64: string; mimeType: string; model?: string };
-    try {
-      payload = (await request.json()) as { imageBase64: string; mimeType: string; model?: string };
-    } catch {
-      return withCors(new Response("Invalid JSON body", { status: 400 }));
+    if (url.pathname.startsWith("/api/share/") && request.method === "GET") {
+      let shareId = "";
+      try {
+        shareId = decodeURIComponent(url.pathname.slice("/api/share/".length));
+      } catch {
+        return jsonResponse(400, { error: "Invalid share ID." });
+      }
+      return handleShareFetch(shareId, env);
     }
-
-    if (!payload.imageBase64) {
-      return withCors(new Response("Missing imageBase64", { status: 400 }));
-    }
-
-    const requestedModel = typeof payload.model === "string" ? payload.model.trim() : "";
-    const model = requestedModel || env.OPENAI_MODEL || "gpt-5.2";
-
-    const openAiResp = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model,
-        input: [
-          {
-            role: "system",
-            content: [
-              {
-                type: "input_text",
-                text: parserSystemPrompt
-              }
-            ]
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: parserUserPrompt
-              },
-              {
-                type: "input_image",
-                image_url: `data:${payload.mimeType || "image/jpeg"};base64,${payload.imageBase64}`,
-                detail: "high"
-              }
-            ]
-          }
-        ],
-        text: {
-          format: outputFormat
-        }
-      })
-    });
-
-    if (!openAiResp.ok) {
-      const errorBody = await openAiResp.text();
-      return withCors(new Response(errorBody, { status: openAiResp.status }));
-    }
-
-    const body = await openAiResp.json();
-    const outputText = parseOutputText(body);
-
-    return withCors(
-      new Response(outputText, {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json"
-        }
-      })
-    );
+    return withCors(new Response("Not Found", { status: 404 }));
   }
 };

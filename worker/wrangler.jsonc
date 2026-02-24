@@ -3,7 +3,15 @@
   "name": "snapand-shop-vision-proxy",
   "main": "src/index.ts",
   "compatibility_date": "2026-02-22",
+  "d1_databases": [
+    {
+      "binding": "SHARE_DB",
+      "database_name": "snapandshop-shares",
+      "database_id": "9e62f002-5b7f-4815-96ae-950bb560ded4"
+    }
+  ],
   "vars": {
-    "OPENAI_MODEL": "gpt-5.2"
+    "OPENAI_MODEL": "gpt-5.2",
+    "SHARE_TTL_SECONDS": "2592000"
   }
 }

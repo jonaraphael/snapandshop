@@ -7,6 +7,7 @@ declare module "virtual:pwa-register" {
 interface ImportMetaEnv {
   readonly VITE_OPENAI_MODEL?: string;
   readonly VITE_VISION_PROXY_URL?: string;
+  readonly VITE_SHARE_PROXY_URL?: string;
 }
 
 interface ImportMeta {

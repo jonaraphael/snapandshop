@@ -17,7 +17,7 @@ Website: `snapand.shop`
 - `Checklist`: grouped in aisle flow, with quick checkoff while shopping.
 - `Show Picture`: pull up the original list image any time to verify AI extraction.
 - `Edit`: fast corrections before or during checkout.
-- `Share by URL`: copy the address bar on `/list` and open it on another device to load the exact same checklist.
+- `Short share links`: tap Share to create a short opaque URL backed by the Worker (with automatic fallback to legacy URL token links).
 
 ## Stack
 
@@ -40,6 +40,8 @@ For Magic Mode in local dev, point the frontend at your Worker:
 ```bash
 # .env.local
 VITE_VISION_PROXY_URL=https://<your-worker-domain>/api/vision-parse
+# optional: explicit share endpoint (otherwise derived from VISION_PROXY_URL)
+VITE_SHARE_PROXY_URL=https://<your-worker-domain>/api/share
 ```
 
 ## Scripts
@@ -71,10 +73,13 @@ npm run build
 npx wrangler pages deploy dist --project-name=snapand-shop
 ```
 
-Worker proxy (required for Magic Mode):
+Worker proxy (required for Magic Mode and short share links):
 
 ```bash
 cd worker
+npx wrangler d1 create snapandshop-shares
+# put the returned database_id into worker/wrangler.jsonc under d1_databases binding SHARE_DB
+npx wrangler d1 execute snapandshop-shares --file=worker/schema.sql
 npx wrangler secret put OPENAI_API_KEY
 npx wrangler deploy
 ```
@@ -95,4 +100,5 @@ Notes:
   - `/` for `<owner>.github.io` repos or when `CNAME` exists
   - optional override via repo variable `PAGES_BASE_PATH`
 - Set optional repo variable `VISION_PROXY_URL` to your Worker endpoint (for example `https://<worker-domain>/api/vision-parse`).
+- Optional: set `SHARE_PROXY_URL` if your share endpoint is not derivable from `VISION_PROXY_URL`.
 - SPA fallback is enabled by copying `dist/index.html` to `dist/404.html`.
