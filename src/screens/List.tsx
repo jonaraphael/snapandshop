@@ -608,7 +608,7 @@ export const List = (): JSX.Element => {
       return;
     }
 
-    const input = window.prompt("Multiply quantities from the most recent image by:", "2");
+    const input = window.prompt("Multiply recipe by:", "2");
     if (input === null) {
       return;
     }
@@ -653,7 +653,7 @@ export const List = (): JSX.Element => {
         ? String(Math.round(multiplier))
         : String(Math.round(multiplier * 100) / 100);
     setShareStatusWithTimeout(
-      `Scaled ${changedCount} item${changedCount === 1 ? "" : "s"} by ${formattedMultiplier}x.`
+      `Multiplied ${changedCount} item${changedCount === 1 ? "" : "s"} by ${formattedMultiplier}x.`
     );
   };
 
@@ -771,7 +771,7 @@ export const List = (): JSX.Element => {
                 onClick={() => onSelectMenuAction(() => onScaleLatestImageQuantities())}
               >
                 <ScaleIcon />
-                <span>Scale latest image</span>
+                <span>Multiply recipe</span>
               </button>
               <button type="button" className="top-actions-btn" onClick={() => onSelectMenuAction(() => setShowTextSize(true))}>
                 <span className="top-actions-aa">Aa</span>
