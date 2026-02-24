@@ -88,6 +88,7 @@ export interface Session {
   listTitle: string | null;
   recentListId?: string | null;
   loadedFromRecentList?: boolean;
+  latestImageItemIds?: string[];
   imageHash: string | null;
   thumbnailDataUrl: string | null;
   rawText: string;
@@ -171,4 +172,5 @@ export interface RecentList {
   itemCount: number;
   preview: string[];
   items: RecentListItem[];
+  latestImageNormalizedNames?: string[];
 }

@@ -409,6 +409,14 @@ input {
   text-align: center;
 }
 
+.top-actions-scale {
+  font-size: 0.86rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  min-width: 18px;
+  text-align: center;
+}
+
 .screen-title {
   font-family: "Fraunces", serif;
   font-size: 2rem;

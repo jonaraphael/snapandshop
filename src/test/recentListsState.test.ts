@@ -153,4 +153,36 @@ describe("recent list checked-state restore", () => {
     expect(persisted).not.toBeNull();
     expect(JSON.parse(persisted ?? "[]")).toEqual([]);
   });
+
+  it("tracks and restores latest image item IDs for scaling actions", () => {
+    const milk = buildItem({ id: "milk-id", rawText: "milk", canonicalName: "milk", normalizedName: "milk" });
+    const eggs = buildItem({ id: "eggs-id", rawText: "eggs", canonicalName: "eggs", normalizedName: "eggs", orderHint: 121 });
+    const tea = buildItem({ id: "tea-id", rawText: "tea", canonicalName: "tea", normalizedName: "tea", orderHint: 122 });
+
+    useAppStore
+      .getState()
+      .replaceItems([milk, eggs, tea], "Scale test", { latestImageItemIds: ["milk-id", "eggs-id"] });
+
+    expect(useAppStore.getState().session?.latestImageItemIds).toEqual(["milk-id", "eggs-id"]);
+
+    const recentId = useAppStore.getState().recentLists[0]?.id;
+    expect(recentId).toBeTruthy();
+    if (!recentId) {
+      return;
+    }
+
+    const remembered = useAppStore.getState().recentLists[0];
+    expect(remembered.latestImageNormalizedNames).toEqual(["milk", "eggs"]);
+
+    const loaded = useAppStore.getState().loadRecentList(recentId);
+    expect(loaded).toBe(true);
+
+    const session = useAppStore.getState().session;
+    const latestIdSet = new Set(session?.latestImageItemIds ?? []);
+    const latestNames = (session?.items ?? [])
+      .filter((item) => latestIdSet.has(item.id))
+      .map((item) => item.normalizedName)
+      .sort();
+    expect(latestNames).toEqual(["eggs", "milk"]);
+  });
 });

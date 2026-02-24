@@ -16,6 +16,8 @@ import {
 import type { RecentListItem, ShoppingItem } from "../app/types";
 import { encodeSharedListState } from "../lib/share/urlListState";
 import { buildLegacyShareUrl, createServerShareUrl } from "../lib/share/shareApi";
+import { parseQuantityAndNotes } from "../lib/parse/parseQuantity";
+import { scaleQuantityString } from "../lib/parse/scaleQuantity";
 
 const SHAKE_DELTA_THRESHOLD = 13;
 const SHAKE_COOLDOWN_MS = 1500;
@@ -216,6 +218,8 @@ const MenuIcon = (): JSX.Element => (
     <path d="M4 17.5h16" />
   </svg>
 );
+
+const ScaleIcon = (): JSX.Element => <span className="top-actions-scale">x2</span>;
 
 export const List = (): JSX.Element => {
   const navigate = useNavigate();
@@ -474,11 +478,20 @@ export const List = (): JSX.Element => {
         const currentSession = useAppStore.getState().session;
         const existingItems = currentSession?.items ?? [];
         const merged = collateItems(existingItems, incoming);
+        const incomingNormalized = new Set(
+          incoming.map((item) => item.normalizedName.trim().toLowerCase()).filter(Boolean)
+        );
+        const latestImageItemIds = merged
+          .filter((item) => incomingNormalized.has(item.normalizedName.trim().toLowerCase()))
+          .map((item) => item.id);
         const resolvedListTitle = finalizeListTitleForItems(
           null,
           merged.map((item) => item.canonicalName)
         );
-        replaceItems(merged, resolvedListTitle, { forkRecentList: true });
+        replaceItems(merged, resolvedListTitle, {
+          forkRecentList: true,
+          latestImageItemIds
+        });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -593,6 +606,68 @@ export const List = (): JSX.Element => {
     }
   };
 
+  const onScaleLatestImageQuantities = (): void => {
+    const currentSession = useAppStore.getState().session;
+    if (!currentSession || !currentSession.items.length) {
+      setShareStatusWithTimeout("No list to scale yet.");
+      return;
+    }
+
+    const latestImageIds = new Set((currentSession.latestImageItemIds ?? []).filter(Boolean));
+    if (!latestImageIds.size) {
+      setShareStatusWithTimeout("No recent image items found to scale.");
+      return;
+    }
+
+    const input = window.prompt("Multiply quantities from the most recent image by:", "2");
+    if (input === null) {
+      return;
+    }
+
+    const multiplier = Number(input.trim());
+    if (!Number.isFinite(multiplier) || multiplier <= 0) {
+      setShareStatusWithTimeout("Enter a positive number like 2 or 1.5.");
+      return;
+    }
+
+    let changedCount = 0;
+    const scaledItems = currentSession.items.map((item) => {
+      if (!latestImageIds.has(item.id)) {
+        return item;
+      }
+
+      const parsedQuantity = parseQuantityAndNotes(item.rawText).quantity;
+      const baseQuantity = item.quantity ?? parsedQuantity;
+      const scaledQuantity = scaleQuantityString(baseQuantity, multiplier);
+      if (scaledQuantity === item.quantity) {
+        return item;
+      }
+
+      changedCount += 1;
+      return {
+        ...item,
+        quantity: scaledQuantity,
+        rawText: scaledQuantity ? `${scaledQuantity} ${item.canonicalName}` : item.canonicalName
+      };
+    });
+
+    if (changedCount === 0) {
+      setShareStatusWithTimeout("No numeric quantities found in the most recent image items.");
+      return;
+    }
+
+    replaceItems(scaledItems, currentSession.listTitle, {
+      latestImageItemIds: Array.from(latestImageIds)
+    });
+    const formattedMultiplier =
+      Math.abs(multiplier - Math.round(multiplier)) < 0.000001
+        ? String(Math.round(multiplier))
+        : String(Math.round(multiplier * 100) / 100);
+    setShareStatusWithTimeout(
+      `Scaled ${changedCount} item${changedCount === 1 ? "" : "s"} by ${formattedMultiplier}x.`
+    );
+  };
+
   const closeActionMenu = useCallback((): void => {
     setShowActionMenu(false);
   }, []);
@@ -700,6 +775,14 @@ export const List = (): JSX.Element => {
               <button type="button" className="top-actions-btn" onClick={() => onSelectMenuAction(() => navigate(ROUTES.review))}>
                 <EditIcon />
                 <span>Edit list</span>
+              </button>
+              <button
+                type="button"
+                className="top-actions-btn"
+                onClick={() => onSelectMenuAction(() => onScaleLatestImageQuantities())}
+              >
+                <ScaleIcon />
+                <span>Scale latest image</span>
               </button>
               <button type="button" className="top-actions-btn" onClick={() => onSelectMenuAction(() => setShowTextSize(true))}>
                 <span className="top-actions-aa">Aa</span>

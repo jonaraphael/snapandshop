@@ -66,7 +66,9 @@ export const Review = (): JSX.Element => {
         result.list_title,
         ordered.map((item) => item.canonicalName)
       );
-      replaceItems(ordered, resolvedListTitle);
+      replaceItems(ordered, resolvedListTitle, {
+        latestImageItemIds: ordered.map((item) => item.id)
+      });
       setExtractionResult({
         rawText: mapped.map((item) => item.rawText).join("\n"),
         ocrMeta: session?.ocrMeta ?? null,

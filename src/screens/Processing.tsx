@@ -128,7 +128,9 @@ export const Processing = (): JSX.Element => {
           listTitle: resolvedListTitle,
           usedMagicMode: true
         });
-        replaceItems(ordered, resolvedListTitle);
+        replaceItems(ordered, resolvedListTitle, {
+          latestImageItemIds: ordered.map((item) => item.id)
+        });
         setPipeline({ status: "review_ready", progress: 1, label: "Ready", error: null });
 
         logDebug("processing_frontier_success", {

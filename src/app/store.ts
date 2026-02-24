@@ -47,6 +47,16 @@ const normalizeListTitle = (value: string | null | undefined): string | null => 
   return trimmed.slice(0, 80);
 };
 
+const normalizeStringArray = (value: unknown): string[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const normalized = value
+    .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+    .filter(Boolean);
+  return Array.from(new Set(normalized));
+};
+
 const readLocal = <T>(key: string): T | null => {
   try {
     const raw = localStorage.getItem(key);
@@ -93,7 +103,8 @@ const readSession = (): Session | null => {
     ...stored,
     listTitle: normalizeListTitle(stored.listTitle),
     recentListId: typeof stored.recentListId === "string" ? stored.recentListId : null,
-    loadedFromRecentList: stored.loadedFromRecentList === true
+    loadedFromRecentList: stored.loadedFromRecentList === true,
+    latestImageItemIds: normalizeStringArray(stored.latestImageItemIds)
   };
 };
 
@@ -112,6 +123,7 @@ const readRecentLists = (): RecentList[] => {
     .map((entry) => ({
       ...entry,
       listTitle: normalizeListTitle(entry.listTitle),
+      latestImageNormalizedNames: normalizeStringArray(entry.latestImageNormalizedNames),
       items: entry.items.map((item) => ({
         ...item,
         checked: item.checked === true
@@ -155,6 +167,7 @@ const rememberRecentList = (
   options?: {
     preferredId?: string | null;
     forceNewId?: boolean;
+    latestImageItemIds?: string[];
   }
 ): { recentLists: RecentList[]; recentListId: string | null } => {
   if (!items.length) {
@@ -185,6 +198,15 @@ const rememberRecentList = (
     existingId = existingBySignature ?? createId();
   }
   const now = new Date().toISOString();
+  const latestImageIdSet = new Set(options?.latestImageItemIds ?? []);
+  const latestImageNormalizedNames = Array.from(
+    new Set(
+      items
+        .filter((item) => latestImageIdSet.has(item.id))
+        .map((item) => item.normalizedName.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
   const nextEntry: RecentList = {
     id: existingId,
     savedAt: now,
@@ -192,7 +214,8 @@ const rememberRecentList = (
     listTitle: normalizeListTitle(listTitle),
     itemCount: snapshotItems.length,
     preview: snapshotItems.map((item) => item.canonicalName).filter(Boolean).slice(0, 4),
-    items: snapshotItems
+    items: snapshotItems,
+    latestImageNormalizedNames
   };
 
   const rest = recentLists.filter((entry) => entry.id !== existingId);
@@ -211,6 +234,7 @@ const makeSession = (): Session => {
     listTitle: null,
     recentListId: null,
     loadedFromRecentList: false,
+    latestImageItemIds: [],
     imageHash: null,
     thumbnailDataUrl: null,
     rawText: "",
@@ -268,7 +292,7 @@ interface AppState {
   replaceItems: (
     items: ShoppingItem[],
     listTitle?: string | null,
-    options?: { forkRecentList?: boolean }
+    options?: { forkRecentList?: boolean; latestImageItemIds?: string[] | null }
   ) => void;
   loadRecentList: (recentListId: string) => boolean;
   removeRecentList: (recentListId: string) => void;
@@ -342,6 +366,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       listTitle: normalizedTitle,
       recentListId: null,
       loadedFromRecentList: false,
+      latestImageItemIds: [],
       rawText: normalizedItems.map((item) => item.rawText).join("\n"),
       ocrMeta: null,
       ocrConfidence: 0,
@@ -407,15 +432,27 @@ export const useAppStore = create<AppState>((set, get) => ({
     const sessionTitle = normalizeListTitle(session.listTitle);
     const providedTitle = listTitle === undefined ? undefined : normalizeListTitle(listTitle);
     const nextTitle = providedTitle === undefined ? sessionTitle : providedTitle;
+    const itemIdSet = new Set(items.map((item) => item.id));
+    const nextLatestImageItemIdsSource =
+      options?.latestImageItemIds === null
+        ? []
+        : options?.latestImageItemIds === undefined
+          ? session.latestImageItemIds ?? []
+          : options.latestImageItemIds;
+    const nextLatestImageItemIds = normalizeStringArray(nextLatestImageItemIdsSource).filter((id) =>
+      itemIdSet.has(id)
+    );
     const shouldForkRecent = options?.forkRecentList === true && session.loadedFromRecentList === true;
     const remembered = rememberRecentList(get().recentLists, items, nextTitle, {
       preferredId: shouldForkRecent ? null : session.recentListId ?? null,
-      forceNewId: shouldForkRecent
+      forceNewId: shouldForkRecent,
+      latestImageItemIds: nextLatestImageItemIds
     });
     const updated = touchSession({
       ...session,
       listTitle: nextTitle,
       items,
+      latestImageItemIds: nextLatestImageItemIds,
       recentListId: remembered.recentListId ?? session.recentListId ?? null,
       loadedFromRecentList: shouldForkRecent ? false : session.loadedFromRecentList === true
     });
@@ -454,12 +491,22 @@ export const useAppStore = create<AppState>((set, get) => ({
         suggested: false
       }))
     );
+    const recentLatestNameSet = new Set(
+      normalizeStringArray(recent.latestImageNormalizedNames).map((name) => name.toLowerCase())
+    );
+    const latestImageItemIds =
+      recentLatestNameSet.size === 0
+        ? []
+        : items
+            .filter((item) => recentLatestNameSet.has(item.normalizedName.trim().toLowerCase()))
+            .map((item) => item.id);
 
     const updated = touchSession({
       ...session,
       listTitle: normalizeListTitle(recent.listTitle),
       recentListId: recent.id,
       loadedFromRecentList: true,
+      latestImageItemIds,
       rawText: items.map((item) => item.rawText).join("\n"),
       usedMagicMode: false,
       items
@@ -552,7 +599,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const updated = touchSession({
       ...session,
-      items: session.items.filter((item) => item.id !== id)
+      items: session.items.filter((item) => item.id !== id),
+      latestImageItemIds: (session.latestImageItemIds ?? []).filter((itemId) => itemId !== id)
     });
     set({ session: updated });
     writeSession(updated);
@@ -610,7 +658,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     const updated = touchSession({
       ...session,
-      items: session.items.filter((item) => item.id !== id)
+      items: session.items.filter((item) => item.id !== id),
+      latestImageItemIds: (session.latestImageItemIds ?? []).filter((itemId) => itemId !== id)
     });
     set({ session: updated });
     writeSession(updated);
@@ -628,7 +677,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       )
     });
     const remembered = rememberRecentList(get().recentLists, updated.items, updated.listTitle, {
-      preferredId: session.recentListId ?? null
+      preferredId: session.recentListId ?? null,
+      latestImageItemIds: session.latestImageItemIds ?? []
     });
     const persisted = {
       ...updated,
