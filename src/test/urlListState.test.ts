@@ -1,6 +1,67 @@
 import { describe, expect, it } from "vitest";
 import type { Session } from "../app/types";
 import { decodeSharedListState, encodeSharedListState } from "../lib/share/urlListState";
+import { MAJOR_SECTION_ORDER } from "../lib/order/majorSectionOrder";
+import { SECTION_ORDER } from "../lib/order/sectionOrder";
+
+const SOURCE_TO_CODE = {
+  ocr: 0,
+  magic: 1,
+  manual: 2
+} as const;
+
+const toBase64Url = (bytes: Uint8Array): string => {
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const slice = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...slice);
+  }
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+};
+
+const encodeLegacyV1Token = (session: Session): string => {
+  const payload = {
+    v: 1 as const,
+    t: session.listTitle,
+    i: session.items.map((item) => {
+      const categoryIndex = Math.max(0, SECTION_ORDER.indexOf(item.categoryId));
+      const majorSectionIndex =
+        item.majorSectionId === null || item.majorSectionId === undefined
+          ? null
+          : (() => {
+              const index = MAJOR_SECTION_ORDER.indexOf(item.majorSectionId);
+              return index >= 0 ? index : null;
+            })();
+
+      return [
+        item.id,
+        item.rawText,
+        item.canonicalName,
+        item.normalizedName,
+        item.quantity,
+        item.notes,
+        categoryIndex,
+        item.subcategoryId,
+        item.orderHint,
+        item.checked ? 1 : 0,
+        item.confidence,
+        SOURCE_TO_CODE[item.source],
+        item.categoryOverridden ? 1 : 0,
+        majorSectionIndex,
+        item.majorSectionLabel ?? null,
+        item.majorSubsection ?? null,
+        item.majorSectionOrder ?? null,
+        item.majorSectionItemOrder ?? null,
+        item.suggested ? 1 : 0
+      ];
+    })
+  };
+
+  const json = JSON.stringify(payload);
+  const bytes = new TextEncoder().encode(json);
+  return `v1.${toBase64Url(bytes)}`;
+};
 
 const buildSession = (): Session => ({
   id: "session-1",
@@ -65,15 +126,50 @@ describe("urlListState", () => {
     const token = encodeSharedListState(session);
     const decoded = decodeSharedListState(token);
 
-    expect(decoded).toEqual({
-      listTitle: session.listTitle,
-      items: session.items
-    });
+    expect(decoded).not.toBeNull();
+    if (!decoded) {
+      return;
+    }
+
+    expect(decoded.listTitle).toBe(session.listTitle);
+    expect(decoded.items).toHaveLength(session.items.length);
+    expect(decoded.items.map(({ id, ...rest }) => rest)).toEqual(
+      session.items.map(({ id, ...rest }) => rest)
+    );
   });
 
   it("produces a URL-safe token", () => {
     const token = encodeSharedListState(buildSession());
-    expect(token).toMatch(/^v1\.[A-Za-z0-9_-]+$/);
+    expect(token).toMatch(/^v2\.[A-Za-z0-9_-]+$/);
+  });
+
+  it("produces shorter tokens than legacy v1 JSON encoding", () => {
+    const session = buildSession();
+    const tokenV2 = encodeSharedListState(session);
+    const tokenV1 = encodeLegacyV1Token(session);
+
+    expect(tokenV2).not.toBeNull();
+    if (!tokenV2) {
+      return;
+    }
+    expect(tokenV2.length).toBeLessThan(tokenV1.length);
+  });
+
+  it("decodes legacy v1 tokens for backward compatibility", () => {
+    const session = buildSession();
+    const legacyToken = encodeLegacyV1Token(session);
+    const decoded = decodeSharedListState(legacyToken);
+
+    expect(decoded).not.toBeNull();
+    if (!decoded) {
+      return;
+    }
+
+    expect(decoded.listTitle).toBe(session.listTitle);
+    expect(decoded.items).toHaveLength(session.items.length);
+    expect(decoded.items.map(({ id, ...rest }) => rest)).toEqual(
+      session.items.map(({ id, ...rest }) => rest)
+    );
   });
 
   it("returns null for empty session payloads", () => {
@@ -87,6 +183,7 @@ describe("urlListState", () => {
 
   it("returns null for invalid tokens", () => {
     expect(decodeSharedListState("v1.not-real-base64")).toBeNull();
+    expect(decodeSharedListState("v2.not-real-base64")).toBeNull();
     expect(decodeSharedListState("")).toBeNull();
     expect(decodeSharedListState(null)).toBeNull();
   });

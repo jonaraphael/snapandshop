@@ -86,6 +86,8 @@ export interface Session {
   createdAt: string;
   updatedAt: string;
   listTitle: string | null;
+  recentListId?: string | null;
+  loadedFromRecentList?: boolean;
   imageHash: string | null;
   thumbnailDataUrl: string | null;
   rawText: string;
@@ -150,6 +152,7 @@ export interface RecentListItem {
   normalizedName: string;
   quantity: string | null;
   notes: string | null;
+  checked?: boolean;
   categoryId: CategoryId;
   subcategoryId: string | null;
   orderHint: number | null;

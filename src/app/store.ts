@@ -91,7 +91,9 @@ const readSession = (): Session | null => {
   }
   return {
     ...stored,
-    listTitle: normalizeListTitle(stored.listTitle)
+    listTitle: normalizeListTitle(stored.listTitle),
+    recentListId: typeof stored.recentListId === "string" ? stored.recentListId : null,
+    loadedFromRecentList: stored.loadedFromRecentList === true
   };
 };
 
@@ -109,7 +111,11 @@ const readRecentLists = (): RecentList[] => {
     .filter((entry) => entry && typeof entry.id === "string" && Array.isArray(entry.items))
     .map((entry) => ({
       ...entry,
-      listTitle: normalizeListTitle(entry.listTitle)
+      listTitle: normalizeListTitle(entry.listTitle),
+      items: entry.items.map((item) => ({
+        ...item,
+        checked: item.checked === true
+      }))
     }))
     .slice(0, MAX_RECENT_LISTS);
 };
@@ -120,6 +126,7 @@ const toRecentItem = (item: ShoppingItem): RecentListItem => ({
   normalizedName: item.normalizedName,
   quantity: item.quantity,
   notes: item.notes,
+  checked: item.checked,
   categoryId: item.categoryId,
   subcategoryId: item.subcategoryId,
   orderHint: item.orderHint,
@@ -144,20 +151,39 @@ const buildListSignature = (items: RecentListItem[]): string => {
 const rememberRecentList = (
   recentLists: RecentList[],
   items: ShoppingItem[],
-  listTitle: string | null
-): RecentList[] => {
+  listTitle: string | null,
+  options?: {
+    preferredId?: string | null;
+    forceNewId?: boolean;
+  }
+): { recentLists: RecentList[]; recentListId: string | null } => {
   if (!items.length) {
-    return recentLists;
+    return {
+      recentLists,
+      recentListId: options?.preferredId ?? null
+    };
   }
 
   const snapshotItems = items.map(toRecentItem);
   const signature = buildListSignature(snapshotItems);
   if (!signature) {
-    return recentLists;
+    return {
+      recentLists,
+      recentListId: options?.preferredId ?? null
+    };
   }
 
-  const existingIndex = recentLists.findIndex((entry) => entry.signature === signature);
-  const existingId = existingIndex >= 0 ? recentLists[existingIndex].id : createId();
+  const preferredId = options?.preferredId ?? null;
+  const preferredExists = preferredId ? recentLists.some((entry) => entry.id === preferredId) : false;
+  const existingBySignature = recentLists.find((entry) => entry.signature === signature)?.id ?? null;
+  let existingId: string;
+  if (options?.forceNewId) {
+    existingId = createId();
+  } else if (preferredExists && preferredId) {
+    existingId = preferredId;
+  } else {
+    existingId = existingBySignature ?? createId();
+  }
   const now = new Date().toISOString();
   const nextEntry: RecentList = {
     id: existingId,
@@ -170,7 +196,10 @@ const rememberRecentList = (
   };
 
   const rest = recentLists.filter((entry) => entry.id !== existingId);
-  return [nextEntry, ...rest].slice(0, MAX_RECENT_LISTS);
+  return {
+    recentLists: [nextEntry, ...rest].slice(0, MAX_RECENT_LISTS),
+    recentListId: existingId
+  };
 };
 
 const makeSession = (): Session => {
@@ -180,6 +209,8 @@ const makeSession = (): Session => {
     createdAt: now,
     updatedAt: now,
     listTitle: null,
+    recentListId: null,
+    loadedFromRecentList: false,
     imageHash: null,
     thumbnailDataUrl: null,
     rawText: "",
@@ -234,8 +265,13 @@ interface AppState {
     listTitle: string | null;
     usedMagicMode: boolean;
   }) => void;
-  replaceItems: (items: ShoppingItem[], listTitle?: string | null) => void;
+  replaceItems: (
+    items: ShoppingItem[],
+    listTitle?: string | null,
+    options?: { forkRecentList?: boolean }
+  ) => void;
   loadRecentList: (recentListId: string) => boolean;
+  removeRecentList: (recentListId: string) => void;
   addSuggestedItems: (items: RecentListItem[]) => void;
   dismissSuggestedItem: (id: string) => void;
   addItem: (canonicalName: string) => void;
@@ -304,6 +340,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const updated = touchSession({
       ...existingSession,
       listTitle: normalizedTitle,
+      recentListId: null,
+      loadedFromRecentList: false,
       rawText: normalizedItems.map((item) => item.rawText).join("\n"),
       ocrMeta: null,
       ocrConfidence: 0,
@@ -364,13 +402,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ session: updated });
     writeSession(updated);
   },
-  replaceItems: (items, listTitle) => {
+  replaceItems: (items, listTitle, options) => {
     const session = get().ensureSession();
     const sessionTitle = normalizeListTitle(session.listTitle);
     const providedTitle = listTitle === undefined ? undefined : normalizeListTitle(listTitle);
     const nextTitle = providedTitle === undefined ? sessionTitle : providedTitle;
-    const updated = touchSession({ ...session, listTitle: nextTitle, items });
-    const recentLists = rememberRecentList(get().recentLists, items, nextTitle);
+    const shouldForkRecent = options?.forkRecentList === true && session.loadedFromRecentList === true;
+    const remembered = rememberRecentList(get().recentLists, items, nextTitle, {
+      preferredId: shouldForkRecent ? null : session.recentListId ?? null,
+      forceNewId: shouldForkRecent
+    });
+    const updated = touchSession({
+      ...session,
+      listTitle: nextTitle,
+      items,
+      recentListId: remembered.recentListId ?? session.recentListId ?? null,
+      loadedFromRecentList: shouldForkRecent ? false : session.loadedFromRecentList === true
+    });
+    const recentLists = remembered.recentLists;
     set({ session: updated, recentLists });
     writeSession(updated);
     writeLocal(RECENT_LISTS_KEY, recentLists);
@@ -393,7 +442,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         categoryId: item.categoryId,
         subcategoryId: item.subcategoryId,
         orderHint: item.orderHint,
-        checked: false,
+        checked: item.checked === true,
         confidence: 0.9,
         source: "manual",
         categoryOverridden: false,
@@ -409,6 +458,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     const updated = touchSession({
       ...session,
       listTitle: normalizeListTitle(recent.listTitle),
+      recentListId: recent.id,
+      loadedFromRecentList: true,
       rawText: items.map((item) => item.rawText).join("\n"),
       usedMagicMode: false,
       items
@@ -417,6 +468,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ session: updated, magicDebugOutput: null });
     writeSession(updated);
     return true;
+  },
+  removeRecentList: (recentListId) => {
+    const currentRecent = get().recentLists;
+    const nextRecent = currentRecent.filter((entry) => entry.id !== recentListId);
+    if (nextRecent.length === currentRecent.length) {
+      return;
+    }
+
+    const currentSession = get().session;
+    if (currentSession && currentSession.recentListId === recentListId) {
+      const updatedSession = touchSession({
+        ...currentSession,
+        recentListId: null,
+        loadedFromRecentList: false
+      });
+      set({ recentLists: nextRecent, session: updatedSession });
+      writeSession(updatedSession);
+    } else {
+      set({ recentLists: nextRecent });
+    }
+
+    writeLocal(RECENT_LISTS_KEY, nextRecent);
   },
   addSuggestedItems: (items) => {
     if (!items.length) {
@@ -554,8 +627,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         item.id === id ? { ...item, checked: !item.checked } : item
       )
     });
-    set({ session: updated });
-    writeSession(updated);
+    const remembered = rememberRecentList(get().recentLists, updated.items, updated.listTitle, {
+      preferredId: session.recentListId ?? null
+    });
+    const persisted = {
+      ...updated,
+      recentListId: remembered.recentListId ?? session.recentListId ?? null
+    };
+    set({ session: persisted, recentLists: remembered.recentLists });
+    writeSession(persisted);
+    writeLocal(RECENT_LISTS_KEY, remembered.recentLists);
   }
 }));
 

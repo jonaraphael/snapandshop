@@ -1,16 +1,189 @@
-import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../app/routes";
+import type { RecentList } from "../app/types";
 import { useAppStore } from "../app/store";
 import { BrandLogo } from "../components/BrandLogo";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { logDebug } from "../lib/debug/logger";
+
+const RECENT_SWIPE_TRIGGER_PX = 86;
+const RECENT_SWIPE_MAX_PX = 126;
+const RECENT_SWIPE_LOCK_PX = 10;
+
+interface RecentListRowProps {
+  recent: RecentList;
+  gradient: string;
+  dateLabel: string;
+  onOpen: () => void;
+  onDelete: () => void;
+}
+
+const RecentListRow = ({
+  recent,
+  gradient,
+  dateLabel,
+  onOpen,
+  onDelete
+}: RecentListRowProps): JSX.Element => {
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const pointerIdRef = useRef<number | null>(null);
+  const startXRef = useRef<number | null>(null);
+  const startYRef = useRef<number | null>(null);
+  const dragXRef = useRef(0);
+  const swipeLockedRef = useRef(false);
+
+  const setDrag = (value: number): void => {
+    dragXRef.current = value;
+    setDragX(value);
+  };
+
+  const clearGesture = (): void => {
+    pointerIdRef.current = null;
+    startXRef.current = null;
+    startYRef.current = null;
+    setIsDragging(false);
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (event.pointerType === "mouse") {
+      return;
+    }
+
+    pointerIdRef.current = event.pointerId;
+    startXRef.current = event.clientX;
+    startYRef.current = event.clientY;
+    swipeLockedRef.current = false;
+    setIsDragging(true);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Pointer capture is optional.
+    }
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (pointerIdRef.current !== event.pointerId) {
+      return;
+    }
+    const startX = startXRef.current;
+    const startY = startYRef.current;
+    if (startX === null || startY === null) {
+      return;
+    }
+
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    if (Math.abs(deltaY) > RECENT_SWIPE_LOCK_PX && Math.abs(deltaY) > Math.abs(deltaX)) {
+      clearGesture();
+      setDrag(0);
+      return;
+    }
+
+    if (deltaX >= 0) {
+      setDrag(0);
+      return;
+    }
+
+    const next = Math.max(-RECENT_SWIPE_MAX_PX, deltaX);
+    if (Math.abs(next) > RECENT_SWIPE_LOCK_PX) {
+      swipeLockedRef.current = true;
+    }
+    setDrag(next);
+  };
+
+  const finalizeSwipe = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (pointerIdRef.current !== event.pointerId) {
+      return;
+    }
+
+    try {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch {
+      // Ignore release failures.
+    }
+
+    const shouldRemove = dragXRef.current <= -RECENT_SWIPE_TRIGGER_PX;
+    clearGesture();
+
+    if (!shouldRemove) {
+      setDrag(0);
+      return;
+    }
+
+    setIsRemoving(true);
+    setDrag(-RECENT_SWIPE_MAX_PX);
+    window.setTimeout(() => {
+      onDelete();
+      setIsRemoving(false);
+      setDrag(0);
+      swipeLockedRef.current = false;
+    }, 120);
+  };
+
+  const onPointerCancel = (event: ReactPointerEvent<HTMLDivElement>): void => {
+    if (pointerIdRef.current !== event.pointerId) {
+      return;
+    }
+    clearGesture();
+    setDrag(0);
+  };
+
+  const onClickCapture = (event: ReactMouseEvent<HTMLDivElement>): void => {
+    if (!swipeLockedRef.current) {
+      return;
+    }
+    swipeLockedRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const rowStyle = {
+    "--recent-gradient": gradient,
+    transform: `translateX(${dragX}px)`
+  } as CSSProperties;
+  const gestureActive = isDragging || isRemoving;
+
+  return (
+    <div
+      className={`recent-row-shell ${gestureActive ? "gesture-active" : ""} ${isRemoving ? "removing" : ""}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={finalizeSwipe}
+      onPointerCancel={onPointerCancel}
+      onClickCapture={onClickCapture}
+    >
+      <div className="recent-row-delete-bg" aria-hidden>
+        <span className="recent-row-delete-label">Delete</span>
+      </div>
+      <button type="button" className={`recent-list-btn ${isDragging ? "dragging" : ""}`} style={rowStyle} onClick={onOpen}>
+        <span className="recent-list-name">{recent.listTitle?.trim() || "Shopping list"}</span>
+        <span className="recent-list-date">{dateLabel}</span>
+        <span className="recent-list-preview">
+          {recent.preview.length ? recent.preview.join(" • ") : "Saved list"}
+        </span>
+        <span className="recent-list-meta">{recent.itemCount} items</span>
+      </button>
+    </div>
+  );
+};
 
 export const Landing = (): JSX.Element => {
   const navigate = useNavigate();
   const setImageInput = useAppStore((state) => state.setImageInput);
   const recentLists = useAppStore((state) => state.recentLists);
   const loadRecentList = useAppStore((state) => state.loadRecentList);
+  const removeRecentList = useAppStore((state) => state.removeRecentList);
   const ensureSession = useAppStore((state) => state.ensureSession);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -247,24 +420,20 @@ export const Landing = (): JSX.Element => {
             <h2 className="recent-title">Recent lists</h2>
             <div className="recent-list-grid">
               {recentLists.map((recent) => (
-                <button
+                <RecentListRow
                   key={recent.id}
-                  type="button"
-                  className="recent-list-btn"
-                  style={{ "--recent-gradient": gradientForId(recent.id) } as CSSProperties}
-                  onClick={() => {
+                  recent={recent}
+                  gradient={gradientForId(recent.id)}
+                  dateLabel={formatRecentDate(recent.savedAt)}
+                  onOpen={() => {
                     if (loadRecentList(recent.id)) {
                       navigate(ROUTES.list);
                     }
                   }}
-                >
-                  <span className="recent-list-name">{recent.listTitle?.trim() || "Shopping list"}</span>
-                  <span className="recent-list-date">{formatRecentDate(recent.savedAt)}</span>
-                  <span className="recent-list-preview">
-                    {recent.preview.length ? recent.preview.join(" • ") : "Saved list"}
-                  </span>
-                  <span className="recent-list-meta">{recent.itemCount} items</span>
-                </button>
+                  onDelete={() => {
+                    removeRecentList(recent.id);
+                  }}
+                />
               ))}
             </div>
           </section>

@@ -197,6 +197,16 @@ const EditIcon = (): JSX.Element => (
   </svg>
 );
 
+const ShareIcon = (): JSX.Element => (
+  <svg className="header-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+    <circle cx="18" cy="5.5" r="2.4" />
+    <circle cx="6" cy="12" r="2.4" />
+    <circle cx="18" cy="18.5" r="2.4" />
+    <path d="M8.1 10.9l7.7-4.1" />
+    <path d="M8.1 13.1l7.7 4.1" />
+  </svg>
+);
+
 export const List = (): JSX.Element => {
   const navigate = useNavigate();
   const session = useAppStore((state) => state.session);
@@ -215,12 +225,14 @@ export const List = (): JSX.Element => {
   const [lastRemovedItem, setLastRemovedItem] = useState<ShoppingItem | null>(null);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [addPhotoError, setAddPhotoError] = useState<string | null>(null);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [shakeEnabled, setShakeEnabled] = useState(false);
   const addPhotoInputRef = useRef<HTMLInputElement>(null);
   const lastRemovedRef = useRef<ShoppingItem | null>(null);
   const lastMagnitudeRef = useRef<number | null>(null);
   const lastShakeAtRef = useRef(0);
   const addPhotoAbortRef = useRef<AbortController | null>(null);
+  const shareStatusTimerRef = useRef<number | null>(null);
   const sourceImageUrl = imagePreviewUrl ?? session?.thumbnailDataUrl ?? null;
   const activeListTitle = session?.listTitle?.trim() || "Shopping list";
 
@@ -451,10 +463,10 @@ export const List = (): JSX.Element => {
         const existingItems = currentSession?.items ?? [];
         const merged = collateItems(existingItems, incoming);
         const resolvedListTitle = finalizeListTitleForItems(
-          currentSession?.listTitle ?? parsed.list_title,
+          null,
           merged.map((item) => item.canonicalName)
         );
-        replaceItems(merged, resolvedListTitle);
+        replaceItems(merged, resolvedListTitle, { forkRecentList: true });
       } catch (error) {
         if (error instanceof DOMException && error.name === "AbortError") {
           return;
@@ -478,6 +490,69 @@ export const List = (): JSX.Element => {
     }
     void onAddPhoto(file);
   };
+
+  const clearShareStatusTimer = (): void => {
+    if (shareStatusTimerRef.current !== null) {
+      window.clearTimeout(shareStatusTimerRef.current);
+      shareStatusTimerRef.current = null;
+    }
+  };
+
+  const setShareStatusWithTimeout = (message: string): void => {
+    clearShareStatusTimer();
+    setShareStatus(message);
+    shareStatusTimerRef.current = window.setTimeout(() => {
+      setShareStatus(null);
+      shareStatusTimerRef.current = null;
+    }, 2600);
+  };
+
+  const copyToClipboard = async (value: string): Promise<boolean> => {
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch {
+        // fallback below
+      }
+    }
+
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return copied;
+    } catch {
+      return false;
+    }
+  };
+
+  const openSmsComposer = (shareUrl: string): void => {
+    const message = `${activeListTitle}: ${shareUrl}`;
+    const encodedMessage = encodeURIComponent(message);
+    const isiOS = /iPad|iPhone|iPod/i.test(navigator.userAgent);
+    const smsUrl = isiOS ? `sms:&body=${encodedMessage}` : `sms:?body=${encodedMessage}`;
+    window.location.href = smsUrl;
+  };
+
+  const onShareList = async (): Promise<void> => {
+    const shareUrl = window.location.href;
+    const copied = await copyToClipboard(shareUrl);
+    setShareStatusWithTimeout(copied ? "Link copied. Opening SMS…" : "Opening SMS…");
+    openSmsComposer(shareUrl);
+  };
+
+  useEffect(() => {
+    return () => {
+      clearShareStatusTimer();
+    };
+  }, []);
 
   return (
     <main className="screen list-screen">
@@ -507,6 +582,16 @@ export const List = (): JSX.Element => {
         }
         rightContent={
           <div className="header-icon-row">
+            <button
+              type="button"
+              className="header-icon-btn"
+              aria-label="Share list by text message"
+              onClick={() => {
+                void onShareList();
+              }}
+            >
+              <ShareIcon />
+            </button>
             <button
               type="button"
               className="header-icon-btn"
@@ -546,6 +631,7 @@ export const List = (): JSX.Element => {
           </div>
         ) : null}
         {addPhotoError ? <p className="error-text">{addPhotoError}</p> : null}
+        {shareStatus ? <p className="share-status">{shareStatus}</p> : null}
       </header>
 
       <section className="sections-wrap">

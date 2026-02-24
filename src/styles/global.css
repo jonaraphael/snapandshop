@@ -461,17 +461,67 @@ input {
   gap: 0.5rem;
 }
 
+.recent-row-shell {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  touch-action: pan-y;
+}
+
+.recent-row-shell.removing {
+  pointer-events: none;
+}
+
+.recent-row-delete-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #c9342e 0%, #a91f1a 100%);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 0.85rem;
+  color: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+}
+
+.recent-row-shell.gesture-active .recent-row-delete-bg {
+  opacity: 1;
+}
+
+.recent-row-delete-label {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateX(6px);
+  transition: opacity 110ms ease, transform 110ms ease;
+}
+
+.recent-row-shell.gesture-active .recent-row-delete-label {
+  opacity: 0.95;
+  transform: translateX(0);
+}
+
 .recent-list-btn {
   position: relative;
   border: 1px solid #b9cce1;
   border-radius: 14px;
   background: #fcfdff;
+  width: 100%;
   text-align: left;
   padding: 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
   overflow: hidden;
+  transition: transform 170ms ease;
+  will-change: transform;
+}
+
+.recent-list-btn.dragging {
+  transition: none;
 }
 
 .recent-list-btn::before {
@@ -618,6 +668,13 @@ input {
   margin-top: 0.2rem;
   color: #5f7590;
   font-size: 0.82rem;
+}
+
+.share-status {
+  margin-top: 0.2rem;
+  color: #2f5e93;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .source-image-wrap {
