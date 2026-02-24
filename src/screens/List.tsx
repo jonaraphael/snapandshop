@@ -207,6 +207,14 @@ const ShareIcon = (): JSX.Element => (
   </svg>
 );
 
+const MenuIcon = (): JSX.Element => (
+  <svg className="header-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+    <path d="M4 6.5h16" />
+    <path d="M4 12h16" />
+    <path d="M4 17.5h16" />
+  </svg>
+);
+
 export const List = (): JSX.Element => {
   const navigate = useNavigate();
   const session = useAppStore((state) => state.session);
@@ -222,6 +230,7 @@ export const List = (): JSX.Element => {
   const resetForNewList = useAppStore((state) => state.resetForNewList);
   const [showTextSize, setShowTextSize] = useState(false);
   const [showImageSheet, setShowImageSheet] = useState(false);
+  const [showActionMenu, setShowActionMenu] = useState(false);
   const [lastRemovedItem, setLastRemovedItem] = useState<ShoppingItem | null>(null);
   const [isAddingPhoto, setIsAddingPhoto] = useState(false);
   const [addPhotoError, setAddPhotoError] = useState<string | null>(null);
@@ -548,11 +557,37 @@ export const List = (): JSX.Element => {
     openSmsComposer(shareUrl);
   };
 
+  const closeActionMenu = useCallback((): void => {
+    setShowActionMenu(false);
+  }, []);
+
+  const onSelectMenuAction = (action: () => void): void => {
+    closeActionMenu();
+    action();
+  };
+
   useEffect(() => {
     return () => {
       clearShareStatusTimer();
     };
   }, []);
+
+  useEffect(() => {
+    if (!showActionMenu) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape") {
+        closeActionMenu();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [closeActionMenu, showActionMenu]);
 
   return (
     <main className="screen list-screen">
@@ -581,45 +616,62 @@ export const List = (): JSX.Element => {
           </div>
         }
         rightContent={
-          <div className="header-icon-row">
-            <button
-              type="button"
-              className="header-icon-btn"
-              aria-label="Share list by text message"
-              onClick={() => {
-                void onShareList();
-              }}
-            >
-              <ShareIcon />
-            </button>
-            <button
-              type="button"
-              className="header-icon-btn"
-              disabled={!sourceImageUrl}
-              aria-label="Show me the picture again"
-              onClick={() => setShowImageSheet(true)}
-            >
-              <ImageIcon />
-            </button>
-            <button
-              type="button"
-              className="header-icon-btn"
-              aria-label="Edit list"
-              onClick={() => navigate(ROUTES.review)}
-            >
-              <EditIcon />
-            </button>
-            <button
-              type="button"
-              className="header-icon-btn header-icon-text-btn"
-              aria-label="Text size"
-              onClick={() => setShowTextSize(true)}
-            >
-              Aa
-            </button>
-          </div>
+          <button
+            type="button"
+            className="header-icon-btn header-menu-trigger"
+            aria-label={showActionMenu ? "Close list actions" : "Open list actions"}
+            aria-haspopup="dialog"
+            aria-expanded={showActionMenu}
+            onClick={() => setShowActionMenu((open) => !open)}
+          >
+            <MenuIcon />
+          </button>
         }
       />
+      {showActionMenu ? (
+        <div className="top-actions-overlay" role="dialog" aria-modal="true" aria-label="List actions">
+          <button type="button" className="top-actions-backdrop" aria-label="Close list actions" onClick={closeActionMenu} />
+          <section className="top-actions-panel" onClick={(event) => event.stopPropagation()}>
+            <header className="top-actions-header">
+              <h2>Actions</h2>
+              <button type="button" className="link-btn top-actions-close" onClick={closeActionMenu}>
+                Close
+              </button>
+            </header>
+            <div className="top-actions-list">
+              <button
+                type="button"
+                className="top-actions-btn"
+                onClick={() => {
+                  onSelectMenuAction(() => {
+                    void onShareList();
+                  });
+                }}
+              >
+                <ShareIcon />
+                <span>Share</span>
+              </button>
+              <button
+                type="button"
+                className="top-actions-btn"
+                disabled={!sourceImageUrl}
+                onClick={() => onSelectMenuAction(() => setShowImageSheet(true))}
+              >
+                <ImageIcon />
+                <span>Show Picture</span>
+              </button>
+              <button type="button" className="top-actions-btn" onClick={() => onSelectMenuAction(() => navigate(ROUTES.review))}>
+                <EditIcon />
+                <span>Edit list</span>
+              </button>
+              <button type="button" className="top-actions-btn" onClick={() => onSelectMenuAction(() => setShowTextSize(true))}>
+                <span className="top-actions-aa">Aa</span>
+                <span>Text size</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
       <header className="list-title-block">
         <h1 className="list-title">{activeListTitle}</h1>
         {lastRemovedItem ? (

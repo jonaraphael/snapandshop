@@ -48,7 +48,8 @@ test("ocr processes test_list.jpg and extracts grocery names", async ({ page }) 
     )
     .toBe("/list");
 
-  await page.getByRole("button", { name: "Edit" }).click();
+  await page.getByRole("button", { name: "Open list actions" }).click();
+  await page.getByRole("button", { name: "Edit list" }).click();
 
   await expect
     .poll(
