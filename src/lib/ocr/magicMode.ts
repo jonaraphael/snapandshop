@@ -193,142 +193,6 @@ const genericTitleWords = new Set([
   "missions"
 ]);
 
-const commonItemWords = new Set([
-  "milk",
-  "eggs",
-  "bread",
-  "butter",
-  "cheese",
-  "yogurt",
-  "chicken",
-  "beef",
-  "pork",
-  "fish",
-  "rice",
-  "pasta",
-  "beans",
-  "onion",
-  "onions",
-  "potato",
-  "potatoes",
-  "tomato",
-  "tomatoes",
-  "apple",
-  "apples",
-  "banana",
-  "bananas",
-  "lettuce",
-  "carrot",
-  "carrots",
-  "cereal",
-  "coffee",
-  "tea",
-  "water",
-  "juice",
-  "soda",
-  "chips",
-  "cookies",
-  "soap",
-  "shampoo",
-  "toothpaste",
-  "paper",
-  "towels",
-  "toilet",
-  "trash",
-  "detergent",
-  "cleaner",
-  "snacks"
-]);
-
-interface RecipeProfile {
-  title: string;
-  keywords: string[];
-  anchors: string[];
-  minMatches: number;
-}
-
-const recipeProfiles: RecipeProfile[] = [
-  {
-    title: "Guacamole",
-    keywords: ["avocado", "lime", "cilantro", "onion", "jalapeno", "tomato", "garlic", "chips"],
-    anchors: ["avocado"],
-    minMatches: 3
-  },
-  {
-    title: "Shakshuka",
-    keywords: ["eggs", "tomato", "onion", "garlic", "pepper", "cumin", "paprika", "feta"],
-    anchors: ["eggs", "tomato"],
-    minMatches: 3
-  },
-  {
-    title: "Curry",
-    keywords: ["curry", "garam", "turmeric", "cumin", "coriander", "chickpeas", "coconut", "rice", "onion", "garlic", "ginger", "spinach"],
-    anchors: ["curry", "garam", "turmeric", "coconut"],
-    minMatches: 3
-  },
-  {
-    title: "Tacos",
-    keywords: ["tortilla", "avocado", "cilantro", "lime", "onion", "salsa", "beans", "cheese", "chicken", "beef", "cabbage"],
-    anchors: ["tortilla"],
-    minMatches: 3
-  },
-  {
-    title: "Pasta Primavera",
-    keywords: ["pasta", "tomato", "basil", "garlic", "parmesan", "spinach", "zucchini", "mushroom", "lemon"],
-    anchors: ["pasta"],
-    minMatches: 3
-  },
-  {
-    title: "Stir Fry",
-    keywords: ["soy", "ginger", "garlic", "broccoli", "pepper", "mushroom", "tofu", "chicken", "rice", "sesame", "noodles"],
-    anchors: ["soy", "tofu", "chicken", "noodles"],
-    minMatches: 3
-  },
-  {
-    title: "Ramen",
-    keywords: ["ramen", "miso", "noodles", "scallion", "egg", "tofu", "mushroom", "broth", "nori", "spinach"],
-    anchors: ["ramen", "miso", "broth", "noodles"],
-    minMatches: 3
-  },
-  {
-    title: "Chili",
-    keywords: ["beans", "tomato", "onion", "garlic", "chili", "cumin", "beef", "pepper", "corn"],
-    anchors: ["beans", "chili"],
-    minMatches: 3
-  }
-];
-
-const alliterativeAdjectives: Record<string, string[]> = {
-  a: ["Amped", "Aromatic", "Airy"],
-  b: ["Bubbly", "Bold", "Bright"],
-  c: ["Cheery", "Clever", "Cosmic"],
-  d: ["Daring", "Dreamy", "Dapper"],
-  e: ["Electric", "Epic", "Effervescent"],
-  f: ["Funky", "Fresh", "Feisty"],
-  g: ["Gleeful", "Groovy", "Golden"],
-  h: ["Happy", "Honeyed", "Hyper"],
-  i: ["Iconic", "Icy", "Irresistible"],
-  j: ["Jazzy", "Jolly", "Juicy"],
-  k: ["Kooky", "Keen", "Kindled"],
-  l: ["Lively", "Lucky", "Lucid"],
-  m: ["Merry", "Magnetic", "Mighty"],
-  n: ["Nimble", "Nifty", "Nutty"],
-  o: ["Oddball", "Optimistic", "Opulent"],
-  p: ["Peppy", "Playful", "Punchy"],
-  q: ["Quirky", "Quick", "Quaint"],
-  r: ["Radiant", "Rosy", "Rambunctious"],
-  s: ["Snappy", "Sunny", "Sparkly"],
-  t: ["Tangy", "Twinkly", "Turbo"],
-  u: ["Upbeat", "Ultra", "Uncanny"],
-  v: ["Vivid", "Velvety", "Vibrant"],
-  w: ["Witty", "Whimsical", "Warm"],
-  x: ["Xtra", "Xenial", "Xpressive"],
-  y: ["Yummy", "Youthful", "Yare"],
-  z: ["Zesty", "Zippy", "Zingy"]
-};
-
-const fallbackPlayfulAdjectives = ["Cheery", "Playful", "Witty", "Sprightly", "Zesty"];
-
 const hashString = (value: string): number => {
   let hash = 0;
   for (const char of value) {
@@ -343,50 +207,6 @@ const tokenize = (value: string): string[] => {
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter(Boolean);
-};
-
-const normalizeIngredientToken = (token: string): string => {
-  if (token.endsWith("ies") && token.length > 3) {
-    return `${token.slice(0, -3)}y`;
-  }
-  if (token.endsWith("oes") && token.length > 3) {
-    return token.slice(0, -2);
-  }
-  if (token.endsWith("es") && token.length > 3) {
-    return token.slice(0, -1);
-  }
-  if (token.endsWith("s") && token.length > 3) {
-    return token.slice(0, -1);
-  }
-  return token;
-};
-
-const toTokenSet = (itemNames: string[]): Set<string> => {
-  const tokenSet = new Set<string>();
-  for (const name of itemNames) {
-    for (const token of tokenize(name)) {
-      if (token.length <= 1) {
-        continue;
-      }
-      tokenSet.add(token);
-      tokenSet.add(normalizeIngredientToken(token));
-    }
-  }
-  return tokenSet;
-};
-
-const pickAlliterativeAdjective = (subject: string, seed: string): string => {
-  const firstLetterMatch = subject.toLowerCase().match(/[a-z]/);
-  const firstLetter = firstLetterMatch?.[0] ?? null;
-  if (!firstLetter) {
-    return fallbackPlayfulAdjectives[hashString(seed) % fallbackPlayfulAdjectives.length];
-  }
-
-  const options = alliterativeAdjectives[firstLetter];
-  if (!options?.length) {
-    return fallbackPlayfulAdjectives[hashString(seed) % fallbackPlayfulAdjectives.length];
-  }
-  return options[hashString(`${seed}|${subject}|${firstLetter}`) % options.length];
 };
 
 const cleanTitle = (value: string | null | undefined): string | null => {
@@ -496,110 +316,31 @@ const toDisplayItem = (value: string): string => {
     .join(" ");
 };
 
-interface RecipeMatch {
-  profile: RecipeProfile;
-  score: number;
-  matches: number;
-}
+const pickRandomDistinctItemPair = (itemNames: string[]): { first: string; second: string } => {
+  const displayItems = getDistinctNames(itemNames)
+    .map(toDisplayItem)
+    .filter(Boolean);
+  const distinctDisplayItems = getDistinctNames(displayItems);
 
-interface RankedItem {
-  name: string;
-  tokens: string[];
-  score: number;
-}
-
-const rankDistinctItems = (
-  itemNames: string[],
-  scoreBoost?: (tokens: string[]) => number
-): RankedItem[] => {
-  return getDistinctNames(itemNames)
-    .map((name) => {
-      const tokens = tokenize(name).map(normalizeIngredientToken);
-      const noveltyCount = tokens.filter((token) => !commonItemWords.has(token)).length;
-      const baseScore = noveltyCount * 2.25 + (tokens.length > 1 ? 0.75 : 0) + Math.min(name.length, 26) / 12;
-      const boostedScore = scoreBoost ? baseScore + scoreBoost(tokens) : baseScore;
-      return { name, tokens, score: boostedScore };
-    })
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-      return right.name.length - left.name.length;
-    });
-};
-
-const pickBestRecipeMatch = (itemNames: string[]): RecipeMatch | null => {
-  const tokenSet = toTokenSet(itemNames);
-  let best: RecipeMatch | null = null;
-
-  for (const profile of recipeProfiles) {
-    const matches = profile.keywords.filter((keyword) => tokenSet.has(keyword)).length;
-    if (matches < profile.minMatches) {
-      continue;
-    }
-
-    const anchorMatches = profile.anchors.filter((anchor) => tokenSet.has(anchor)).length;
-    if (anchorMatches === 0) {
-      continue;
-    }
-
-    const score = matches * 3 + anchorMatches * 2 + matches / profile.keywords.length;
-    if (!best || score > best.score || (score === best.score && matches > best.matches)) {
-      best = { profile, score, matches };
-    }
+  if (distinctDisplayItems.length === 0) {
+    return { first: "Shopping", second: "List" };
+  }
+  if (distinctDisplayItems.length === 1) {
+    return { first: distinctDisplayItems[0], second: distinctDisplayItems[0] };
   }
 
-  return best;
-};
+  const seed = distinctDisplayItems.join("|").toLowerCase();
+  const firstIndex = hashString(seed) % distinctDisplayItems.length;
+  const first = distinctDisplayItems[firstIndex];
 
-const pickMostExoticItem = (itemNames: string[]): string | null => {
-  const ranked = rankDistinctItems(itemNames);
-  const best = ranked[0];
-  return best ? toDisplayItem(best.name) : null;
-};
-
-const pickSecondItemOutsideRecipe = (itemNames: string[], recipe: RecipeProfile): string | null => {
-  const recipeKeywordSet = new Set(
-    recipe.keywords.map((keyword) => normalizeIngredientToken(keyword.toLowerCase()))
-  );
-  const ranked = rankDistinctItems(itemNames, (tokens) =>
-    tokens.some((token) => recipeKeywordSet.has(token)) ? 0 : 3
-  );
-  const outsideRecipe = ranked.find(
-    (candidate) => !candidate.tokens.some((token) => recipeKeywordSet.has(token))
-  );
-  const best = outsideRecipe ?? ranked[0];
-  return best ? toDisplayItem(best.name) : null;
-};
-
-const pickDistinctItemPair = (itemNames: string[]): { first: string; second: string } => {
-  const ranked = rankDistinctItems(itemNames);
-  const first = ranked[0] ? toDisplayItem(ranked[0].name) : "Market";
-  const secondCandidate = ranked.find(
-    (candidate) => toDisplayItem(candidate.name).toLowerCase() !== first.toLowerCase()
-  );
-  const second = secondCandidate ? toDisplayItem(secondCandidate.name) : first;
+  const secondPool = distinctDisplayItems.filter((_, index) => index !== firstIndex);
+  const second = secondPool[hashString(`${seed}|second`) % secondPool.length];
   return { first, second };
 };
 
 const fallbackListTitle = (itemNames: string[]): string => {
-  const distinctNames = getDistinctNames(itemNames);
-  const seed = distinctNames.join("|");
-
-  const recipeMatch = pickBestRecipeMatch(distinctNames);
-  if (recipeMatch) {
-    const recipeTitle = recipeMatch.profile.title;
-    const secondItem =
-      pickSecondItemOutsideRecipe(distinctNames, recipeMatch.profile) ??
-      pickMostExoticItem(distinctNames) ??
-      "Market";
-    const adjective = pickAlliterativeAdjective(recipeTitle, seed);
-    return `${adjective} ${recipeTitle} & ${secondItem}`;
-  }
-
-  const { first, second } = pickDistinctItemPair(distinctNames);
-  const adjective = pickAlliterativeAdjective(first, seed);
-  return `${adjective} ${first} & ${second}`;
+  const { first, second } = pickRandomDistinctItemPair(itemNames);
+  return `${first} & ${second}`;
 };
 
 export const finalizeListTitleForItems = (listTitle: string | null, itemNames: string[]): string => {

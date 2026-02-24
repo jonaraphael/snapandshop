@@ -124,8 +124,8 @@ describe("mapMagicModeItems", () => {
 });
 
 describe("finalizeListTitleForItems", () => {
-  it("builds an alliterative recipe title and appends a non-recipe item when available", () => {
-    const title = finalizeListTitleForItems(null, [
+  it("builds a deterministic two-item title from list ingredients", () => {
+    const items = [
       "avocado",
       "cilantro",
       "lime",
@@ -133,30 +133,30 @@ describe("finalizeListTitleForItems", () => {
       "jalapeno",
       "chips",
       "zaatar"
-    ]);
+    ];
+    const title = finalizeListTitleForItems(null, items);
+    const titleAgain = finalizeListTitleForItems(null, items);
+    const [first, second] = title.split(" & ");
+    const inputItems = new Set(items);
 
-    expect(title).toMatch(/^\w+ Guacamole & .+$/);
-    const [adjective, recipe] = title.split(" ");
-    expect(adjective[0].toLowerCase()).toBe(recipe[0].toLowerCase());
-    expect(title.toLowerCase()).toContain("& zaatar");
+    expect(title).toContain(" & ");
+    expect(first).toBeTruthy();
+    expect(second).toBeTruthy();
+    expect(inputItems.has(first.toLowerCase())).toBe(true);
+    expect(inputItems.has(second.toLowerCase())).toBe(true);
+    expect(first.toLowerCase()).not.toBe(second.toLowerCase());
+    expect(titleAgain).toBe(title);
   });
 
-  it("uses two list items with ampersand when no recipe candidate clearly matches", () => {
+  it("uses two list items with ampersand for uncommon ingredient lists", () => {
     const title = finalizeListTitleForItems(null, ["gochujang", "sumac", "nori"]);
     const [left, right] = title.split(" & ");
     expect(left).toBeTruthy();
     expect(right).toBeTruthy();
-
-    const leftParts = left.split(" ");
-    const adjective = leftParts[0];
-    const firstItem = leftParts.slice(1).join(" ");
-    const secondItem = right.trim();
     const inputItems = new Set(["gochujang", "sumac", "nori"]);
-
-    expect(inputItems.has(firstItem.toLowerCase())).toBe(true);
-    expect(inputItems.has(secondItem.toLowerCase())).toBe(true);
-    expect(firstItem.toLowerCase()).not.toBe(secondItem.toLowerCase());
-    expect(adjective[0].toLowerCase()).toBe(firstItem[0].toLowerCase());
+    expect(inputItems.has(left.toLowerCase())).toBe(true);
+    expect(inputItems.has(right.toLowerCase())).toBe(true);
+    expect(left.toLowerCase()).not.toBe(right.toLowerCase());
   });
 
   it("rejects run/adventure style generic titles", () => {
