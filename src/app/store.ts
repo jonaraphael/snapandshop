@@ -57,6 +57,22 @@ const normalizeStringArray = (value: unknown): string[] => {
   return Array.from(new Set(normalized));
 };
 
+const revokePreviewUrls = (urls: string[]): void => {
+  if (typeof URL === "undefined") {
+    return;
+  }
+  for (const url of urls) {
+    if (!url.startsWith("blob:")) {
+      continue;
+    }
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // Ignore invalid or already-revoked object URLs.
+    }
+  }
+};
+
 const readLocal = <T>(key: string): T | null => {
   try {
     const raw = localStorage.getItem(key);
@@ -270,10 +286,12 @@ interface AppState {
   magicDebugOutput: string | null;
   imageFile: File | null;
   imagePreviewUrl: string | null;
+  imagePreviewUrls: string[];
   pipeline: PipelineState;
   setPrefs: (patch: Partial<UiPrefs>) => void;
   ensureSession: () => Session;
   setImageInput: (file: File, previewUrl: string) => void;
+  addImagePreviewUrl: (previewUrl: string) => void;
   clearImageInput: () => void;
   setMagicDebugOutput: (value: string | null) => void;
   loadSharedList: (input: { listTitle: string | null; items: ShoppingItem[] }) => void;
@@ -311,6 +329,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   magicDebugOutput: null,
   imageFile: null,
   imagePreviewUrl: null,
+  imagePreviewUrls: [],
   pipeline: initialPipeline,
   setPrefs: (patch) => {
     set((state) => {
@@ -339,20 +358,33 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setImageInput: (file, previewUrl) => {
     get().ensureSession();
+    revokePreviewUrls(get().imagePreviewUrls);
     logDebug("store_set_image_input", {
       fileName: file.name,
       fileType: file.type,
       fileSize: file.size
     });
-    set({ imageFile: file, imagePreviewUrl: previewUrl });
+    set({ imageFile: file, imagePreviewUrl: previewUrl, imagePreviewUrls: previewUrl ? [previewUrl] : [] });
+  },
+  addImagePreviewUrl: (previewUrl) => {
+    const normalized = previewUrl.trim();
+    if (!normalized) {
+      return;
+    }
+    set((state) => ({
+      imagePreviewUrl: normalized,
+      imagePreviewUrls: [...state.imagePreviewUrls, normalized]
+    }));
   },
   clearImageInput: () => {
-    set({ imageFile: null, imagePreviewUrl: null });
+    revokePreviewUrls(get().imagePreviewUrls);
+    set({ imageFile: null, imagePreviewUrl: null, imagePreviewUrls: [] });
   },
   setMagicDebugOutput: (value) => {
     set({ magicDebugOutput: value });
   },
   loadSharedList: ({ listTitle, items }) => {
+    revokePreviewUrls(get().imagePreviewUrls);
     const existingSession = get().session ?? makeSession();
     const normalizedTitle = normalizeListTitle(listTitle);
     const normalizedItems = items.map((item) => ({
@@ -378,6 +410,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       magicDebugOutput: null,
       imageFile: null,
       imagePreviewUrl: null,
+      imagePreviewUrls: [],
       pipeline: initialPipeline
     });
     writeSession(updated);
@@ -394,12 +427,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ pipeline: initialPipeline });
   },
   resetForNewList: () => {
+    revokePreviewUrls(get().imagePreviewUrls);
     const session = makeSession();
     set({
       session,
       magicDebugOutput: null,
       imageFile: null,
       imagePreviewUrl: null,
+      imagePreviewUrls: [],
       pipeline: initialPipeline
     });
     writeSession(session);
@@ -512,7 +547,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       items
     });
 
-    set({ session: updated, magicDebugOutput: null });
+    revokePreviewUrls(get().imagePreviewUrls);
+    set({ session: updated, magicDebugOutput: null, imagePreviewUrl: null, imagePreviewUrls: [] });
     writeSession(updated);
     return true;
   },

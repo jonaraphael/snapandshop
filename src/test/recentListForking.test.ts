@@ -10,6 +10,7 @@ const resetStore = (): void => {
     magicDebugOutput: null,
     imageFile: null,
     imagePreviewUrl: null,
+    imagePreviewUrls: [],
     pipeline: {
       status: "idle",
       progress: 0,

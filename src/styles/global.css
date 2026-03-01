@@ -767,13 +767,20 @@ input {
   font-weight: 700;
 }
 
-.source-image-wrap {
+.source-image-gallery {
   margin-top: 0.8rem;
+  display: grid;
+  gap: 0.8rem;
+  max-height: 70dvh;
+  overflow-y: auto;
+}
+
+.source-image-wrap {
   border: 1px solid #b9cce2;
   border-radius: 14px;
   background: #fcfdff;
   overflow: hidden;
-  max-height: 70dvh;
+  max-height: 56dvh;
   display: grid;
   place-items: center;
 }
@@ -781,7 +788,7 @@ input {
 .source-image {
   display: block;
   width: 100%;
-  max-height: 70dvh;
+  max-height: 56dvh;
   object-fit: contain;
 }
 

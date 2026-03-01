@@ -224,7 +224,8 @@ const ScaleIcon = (): JSX.Element => <span className="top-actions-scale">x2</spa
 export const List = (): JSX.Element => {
   const navigate = useNavigate();
   const session = useAppStore((state) => state.session);
-  const imagePreviewUrl = useAppStore((state) => state.imagePreviewUrl);
+  const imagePreviewUrls = useAppStore((state) => state.imagePreviewUrls);
+  const addImagePreviewUrl = useAppStore((state) => state.addImagePreviewUrl);
   const recentLists = useAppStore((state) => state.recentLists);
   const magicDebugOutput = useAppStore((state) => state.magicDebugOutput);
   const setMagicDebugOutput = useAppStore((state) => state.setMagicDebugOutput);
@@ -252,7 +253,12 @@ export const List = (): JSX.Element => {
   const autoShareTimerRef = useRef<number | null>(null);
   const autoShareRequestRef = useRef(0);
   const lastSyncedShareTokenRef = useRef<string | null>(null);
-  const sourceImageUrl = imagePreviewUrl ?? session?.thumbnailDataUrl ?? null;
+  const sourceImageUrls = useMemo(() => {
+    if (imagePreviewUrls.length) {
+      return imagePreviewUrls;
+    }
+    return session?.thumbnailDataUrl ? [session.thumbnailDataUrl] : [];
+  }, [imagePreviewUrls, session?.thumbnailDataUrl]);
   const activeListTitle = session?.listTitle?.trim() || "Shopping list";
   const sessionShareToken = useMemo(() => encodeSharedListState(session), [session]);
 
@@ -517,6 +523,7 @@ export const List = (): JSX.Element => {
     if (!file) {
       return;
     }
+    addImagePreviewUrl(URL.createObjectURL(file));
     void onAddPhoto(file);
   };
 
@@ -838,7 +845,7 @@ export const List = (): JSX.Element => {
               <button
                 type="button"
                 className="top-actions-btn"
-                disabled={!sourceImageUrl}
+                disabled={!sourceImageUrls.length}
                 onClick={() => onSelectMenuAction(() => setShowImageSheet(true))}
               >
                 <ImageIcon />
@@ -910,15 +917,23 @@ export const List = (): JSX.Element => {
       ) : null}
 
       <TextSizeControl open={showTextSize} onClose={() => setShowTextSize(false)} />
-      <BottomSheet open={showImageSheet} title="Original List Photo" onClose={() => setShowImageSheet(false)}>
-        {sourceImageUrl ? (
-          <div className="source-image-wrap">
-            <img
-              src={sourceImageUrl}
-              alt="Original uploaded shopping list"
-              className="source-image"
-              loading="lazy"
-            />
+      <BottomSheet
+        open={showImageSheet}
+        title={sourceImageUrls.length > 1 ? "Captured List Photos" : "Original List Photo"}
+        onClose={() => setShowImageSheet(false)}
+      >
+        {sourceImageUrls.length ? (
+          <div className="source-image-gallery">
+            {sourceImageUrls.map((sourceImageUrl, index) => (
+              <div className="source-image-wrap" key={`${sourceImageUrl}-${index}`}>
+                <img
+                  src={sourceImageUrl}
+                  alt={`Captured shopping list ${index + 1}`}
+                  className="source-image"
+                  loading="lazy"
+                />
+              </div>
+            ))}
           </div>
         ) : (
           <p className="hint-text">No uploaded image is available for this list.</p>
